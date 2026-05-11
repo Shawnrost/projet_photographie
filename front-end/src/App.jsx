@@ -1,122 +1,85 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import React from 'react';
+import { motion, useScroll, useSpring } from 'framer-motion';
+
+// Importation de tes composants (assure-toi que les chemins sont corrects)
+import Navbar from './components/vitrine/Navbar';
+import Hero from './components/vitrine/Hero';
+import Gallery from './components/vitrine/Gallery';
+import Features from './components/vitrine/Features';
+import Pricing from './components/vitrine/Pricing';
 
 function App() {
-  const [count, setCount] = useState(0)
+  // Barre de progression de lecture (en haut de l'écran)
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+    <div className="relative bg-white selection:bg-sage-200 selection:text-sage-900">
+      
+      {/* Barre de progression d'animation maximale */}
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1 bg-sage-500 origin-left z-[100]"
+        style={{ scaleX }}
+      />
+
+      {/* Navigation */}
+      <Navbar />
+
+      <main>
+        {/* 1. Hero Slider Cinématique avec Vert Sauge */}
+        <section id="accueil">
+          <Hero />
+        </section>
+
+        {/* 2. Section de transition textuelle artistique */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          transition={{ duration: 1.5 }}
+          className="py-20 text-center bg-white"
         >
-          Count is {count}
-        </button>
-      </section>
+          <h2 className="text-4xl md:text-6xl font-serif italic text-sage-900/20 select-none">
+            Capturer l'invisible, exposer l'éternel.
+          </h2>
+        </motion.div>
 
-      <div className="ticks"></div>
+        {/* 3. Galerie Organique & Z-Layout (Images Corrigées) */}
+        <section id="galerie">
+          <Gallery />
+        </section>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+        {/* 4. Caractéristiques de l'application (Denses & Animées) */}
+        <section id="services">
+          <Features />
+        </section>
+
+        {/* 5. Tarifs Minimalistes */}
+        <section id="tarifs">
+          <Pricing />
+        </section>
+      </main>
+
+      {/* Footer Minimaliste */}
+      <footer className="py-20 bg-sage-900 text-sage-100 text-center">
+        <div className="container mx-auto px-6">
+          <h2 className="text-3xl font-serif italic mb-6">e-Sary</h2>
+          <p className="text-sage-400 font-light tracking-widest text-xs uppercase mb-8">
+            © 2026 Studio Photographique — Antananarivo
+          </p>
+          <div className="flex justify-center gap-8 text-sm font-light">
+            <a href="#" className="hover:text-white transition-colors">Instagram</a>
+            <a href="#" className="hover:text-white transition-colors">Twitter</a>
+            <a href="#" className="hover:text-white transition-colors">Contact</a>
+          </div>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </footer>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;
