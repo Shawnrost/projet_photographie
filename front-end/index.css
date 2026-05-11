@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import './esary-animations.css';
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:italic,wght@400;700&family=Plus+Jakarta+Sans:wght@200;300;400;600&display=swap');
+
+:root {
+  --sage-50: #f4f7f4;
+  --sage-100: #e2e9e2;
+  --sage-200: #c6d4c6;
+  --sage-500: #88a088; /* Couleur principale Vert Sauge */
+  --sage-600: #6b826b;
+  --sage-900: #3c4a3c;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #ffffff;
+  color: var(--sage-900);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.font-serif {
+  font-family: 'Playfair Display', serif;
+}
+
+/* Scrollbar personnalisée Vert Sauge */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--sage-50);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--sage-200);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sage-500);
+}
