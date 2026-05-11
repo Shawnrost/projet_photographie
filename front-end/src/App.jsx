@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, useScroll, useSpring } from 'framer-motion';
 
 // Importation de tes composants (assure-toi que les chemins sont corrects)
-import Navbar from './components/vitrine/Navbar';
+import Navbar from './components/shared/Navbar';
 import Hero from './components/vitrine/Hero';
 import Gallery from './components/vitrine/Gallery';
 import Features from './components/vitrine/Features';
