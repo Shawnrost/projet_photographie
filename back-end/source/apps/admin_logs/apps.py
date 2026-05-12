@@ -2,4 +2,5 @@ from django.apps import AppConfig
 
 
 class AdminLogsConfig(AppConfig):
-    name = 'admin_logs'
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'apps.admin_logs'
