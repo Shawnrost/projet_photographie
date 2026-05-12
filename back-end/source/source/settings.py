@@ -37,7 +37,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
     "corsheaders",
+
+    'apps.users',
+    'apps.publications',
+    'apps.commandes',
+    'apps.conversations',
+    'apps.abonnements',
+    'apps.admin_logs',
 ]
 
 MIDDLEWARE = [
@@ -76,8 +84,12 @@ WSGI_APPLICATION = 'source.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'fifa_photographie',
+        'USER': 'postgres',
+        'PASSWORD': 'ricecooker',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
