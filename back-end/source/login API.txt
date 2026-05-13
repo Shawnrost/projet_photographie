@@ -1,0 +1,375 @@
+# 📡 API Authentification — Documentation Frontend
+
+> **Base URL :** `http://localhost:8000/api/auth/`  
+> **Format :** JSON uniquement  
+> **Auth :** JWT Bearer Token (header `Authorization: Bearer <access_token>`)
+
+---
+
+## Sommaire
+
+- [Inscription](#1-inscription)
+- [Connexion](#2-connexion)
+- [Déconnexion](#3-déconnexion)
+- [Rafraîchir le token](#4-rafraîchir-le-token-access)
+- [Profil de l'utilisateur connecté](#5-profil-de-lutilisateur-connecté)
+- [Gestion des tokens côté React](#gestion-des-tokens-côté-react)
+- [Codes d'erreur](#codes-derreur-courants)
+- [Structure de l'objet Utilisateur](#structure-de-lobjet-utilisateur)
+
+---
+
+## 1. Inscription
+
+Crée un nouveau compte utilisateur.
+
+**`POST /api/auth/inscription/`**
+
+### Corps de la requête
+
+```json
+{
+  "email": "jean.dupont@email.com",
+  "nom": "Dupont",
+  "prenom": "Jean",
+  "role": "client",
+  "password": "MonMotDePasse123!",
+  "password_confirm": "MonMotDePasse123!"
+}
+```
+
+| Champ | Type | Requis | Description |
+|---|---|---|---|
+| `email` | string | ✅ | Doit être unique |
+| `nom` | string | ✅ | Nom de famille |
+| `prenom` | string | ✅ | Prénom |
+| `role` | string | ❌ | `"client"` (défaut) ou `"photographe"` |
+| `password` | string | ✅ | Min. 8 caractères, validation Django |
+| `password_confirm` | string | ✅ | Doit être identique à `password` |
+
+> ⚠️ Le rôle `"admin"` est refusé — il est réservé à une création manuelle côté serveur.
+
+### Réponse succès `201 Created`
+
+```json
+{
+  "success": true,
+  "message": "Compte créé avec succès.",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "jean.dupont@email.com",
+    "nom": "Dupont",
+    "prenom": "Jean",
+    "role": "client",
+    "photo_profil": null,
+    "created_at": "2024-11-15T10:30:00Z",
+    "updated_at": "2024-11-15T10:30:00Z",
+    "profil_photographe": null
+  }
+}
+```
+
+> 💡 Si le rôle est `"photographe"`, le champ `profil_photographe` sera présent (voir [structure](#structure-de-lobjet-utilisateur)).
+
+### Réponse erreur `400 Bad Request`
+
+```json
+{
+  "success": false,
+  "errors": {
+    "email": ["Un utilisateur avec cet email existe déjà."],
+    "password_confirm": ["Les mots de passe ne correspondent pas."]
+  }
+}
+```
+
+---
+
+## 2. Connexion
+
+Authentifie un utilisateur et retourne les tokens JWT.
+
+**`POST /api/auth/connexion/`**
+
+### Corps de la requête
+
+```json
+{
+  "email": "jean.dupont@email.com",
+  "password": "MonMotDePasse123!"
+}
+```
+
+### Réponse succès `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Connexion réussie.",
+  "data": {
+    "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "utilisateur": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "email": "jean.dupont@email.com",
+      "nom": "Dupont",
+      "prenom": "Jean",
+      "role": "client",
+      "photo_profil": null,
+      "created_at": "2024-11-15T10:30:00Z",
+      "updated_at": "2024-11-15T10:30:00Z",
+      "profil_photographe": null
+    }
+  }
+}
+```
+
+> 🔑 **À stocker côté client :**  
+> - `access` → durée de vie **60 minutes** (à mettre dans le header de chaque requête)  
+> - `refresh` → durée de vie **7 jours** (à utiliser pour renouveler l'access token)
+
+### Réponse erreur `401 Unauthorized`
+
+```json
+{
+  "success": false,
+  "message": "Email ou mot de passe incorrect."
+}
+```
+
+---
+
+## 3. Déconnexion
+
+Invalide le refresh token (blacklist côté serveur).
+
+**`POST /api/auth/deconnexion/`**
+
+### Headers requis
+
+```
+Authorization: Bearer <access_token>
+```
+
+### Corps de la requête
+
+```json
+{
+  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### Réponse succès `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Déconnexion réussie."
+}
+```
+
+### Réponse erreur `400 Bad Request`
+
+```json
+{
+  "success": false,
+  "message": "Token invalide ou déjà révoqué."
+}
+```
+
+> ⚠️ Après la déconnexion, supprime les tokens du stockage local côté React (`localStorage` / `sessionStorage`).
+
+---
+
+## 4. Rafraîchir le token access
+
+Obtient un nouvel access token à partir du refresh token.  
+À appeler automatiquement quand l'API retourne `401` sur une requête authentifiée.
+
+**`POST /api/auth/token/refresh/`**
+
+### Corps de la requête
+
+```json
+{
+  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### Réponse succès `200 OK`
+
+```json
+{
+  "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+> 🔄 Un **nouveau refresh token** est aussi retourné — remplace l'ancien en stockage.
+
+### Réponse erreur `401 Unauthorized`
+
+```json
+{
+  "code": "token_not_valid",
+  "detail": "Token is invalid or expired"
+}
+```
+
+> Si cette erreur arrive, le refresh token a expiré : redirige l'utilisateur vers la page de connexion.
+
+---
+
+## 5. Profil de l'utilisateur connecté
+
+Retourne les données de l'utilisateur actuellement connecté.
+
+**`GET /api/auth/moi/`**
+
+### Headers requis
+
+```
+Authorization: Bearer <access_token>
+```
+
+### Réponse succès `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "marie.photo@email.com",
+    "nom": "Martin",
+    "prenom": "Marie",
+    "role": "photographe",
+    "photo_profil": null,
+    "created_at": "2024-11-15T10:30:00Z",
+    "updated_at": "2024-11-15T10:30:00Z",
+    "profil_photographe": {
+      "id": "660e9500-f30c-52e5-b827-557766551111",
+      "bio": "Photographe de mariage basée à Paris.",
+      "adresse": "Paris, France",
+      "photo_couverture": null,
+      "created_at": "2024-11-15T10:30:00Z"
+    }
+  }
+}
+```
+
+---
+
+## Gestion des tokens côté React
+
+### Exemple avec axios
+
+```javascript
+// api/axiosConfig.js
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:8000/api',
+});
+
+// Attache automatiquement le token access à chaque requête
+api.interceptors.request.use((config) => {
+  const access = localStorage.getItem('access_token');
+  if (access) {
+    config.headers.Authorization = `Bearer ${access}`;
+  }
+  return config;
+});
+
+// Rafraîchit le token automatiquement si 401
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        const refresh = localStorage.getItem('refresh_token');
+        const res = await axios.post('/api/auth/token/refresh/', { refresh });
+        localStorage.setItem('access_token', res.data.access);
+        localStorage.setItem('refresh_token', res.data.refresh);
+        originalRequest.headers.Authorization = `Bearer ${res.data.access}`;
+        return api(originalRequest);
+      } catch {
+        // Refresh expiré → déconnecter l'utilisateur
+        localStorage.clear();
+        window.location.href = '/connexion';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+```
+
+### Connexion
+
+```javascript
+const connexion = async (email, password) => {
+  const res = await api.post('/auth/connexion/', { email, password });
+  localStorage.setItem('access_token', res.data.data.access);
+  localStorage.setItem('refresh_token', res.data.data.refresh);
+  // Stocker l'utilisateur dans ton state (Redux, Context, Zustand...)
+  setUtilisateur(res.data.data.utilisateur);
+};
+```
+
+### Déconnexion
+
+```javascript
+const deconnexion = async () => {
+  const refresh = localStorage.getItem('refresh_token');
+  await api.post('/auth/deconnexion/', { refresh });
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  setUtilisateur(null);
+};
+```
+
+---
+
+## Codes d'erreur courants
+
+| Code HTTP | Signification | Action recommandée |
+|---|---|---|
+| `400` | Données invalides (champs manquants, erreurs de validation) | Afficher les erreurs du champ concerné |
+| `401` | Non authentifié ou token expiré | Rafraîchir le token ou rediriger vers login |
+| `403` | Authentifié mais pas les droits | Afficher un message "Accès refusé" |
+| `404` | Ressource introuvable | Afficher une page 404 |
+| `500` | Erreur serveur | Afficher un message générique, logger l'erreur |
+
+---
+
+## Structure de l'objet Utilisateur
+
+```typescript
+// Types TypeScript pour référence
+interface Utilisateur {
+  id: string;           // UUID v4
+  email: string;
+  nom: string;
+  prenom: string;
+  role: 'client' | 'photographe' | 'admin';
+  photo_profil: string | null;  // URL ou base64
+  created_at: string;   // ISO 8601
+  updated_at: string;   // ISO 8601
+  profil_photographe: ProfilPhotographe | null;  // null si role !== 'photographe'
+}
+
+interface ProfilPhotographe {
+  id: string;           // UUID v4
+  bio: string | null;
+  adresse: string | null;
+  photo_couverture: string | null;  // URL ou base64
+  created_at: string;   // ISO 8601
+}
+```
+
+---
+
+*Documentation générée pour le projet — module authentification. Pour toute question, contacter le développeur backend.*
