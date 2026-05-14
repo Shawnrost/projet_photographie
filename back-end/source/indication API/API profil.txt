@@ -1,0 +1,250 @@
+# 📡 API Profil — Documentation Frontend
+
+> **Base URL :** `http://localhost:8000/api/auth/`  
+> **Auth requise :** `Authorization: Bearer <access_token>` sur tous les endpoints de cette section  
+> **Format upload :** `multipart/form-data` quand une photo est envoyée, sinon `application/json`
+
+---
+
+## Sommaire
+
+- [Modifier son profil](#1-modifier-son-profil)
+- [Supprimer sa photo de profil](#2-supprimer-sa-photo-de-profil)
+- [Modifier le profil photographe](#3-modifier-le-profil-photographe-photographes-uniquement)
+- [Supprimer la photo de couverture](#4-supprimer-la-photo-de-couverture-photographes-uniquement)
+- [Changer son mot de passe](#5-changer-son-mot-de-passe)
+- [Exemples React](#exemples-react)
+
+---
+
+## 1. Modifier son profil
+
+Met à jour nom, prénom et/ou photo de profil de l'utilisateur connecté.  
+Tous les champs sont **optionnels** (modification partielle).
+
+**`PATCH /api/auth/profil/`**
+
+### Sans photo — `application/json`
+
+```json
+{
+  "nom": "Dupont",
+  "prenom": "Jean"
+}
+```
+
+### Avec photo — `multipart/form-data`
+
+| Champ | Type | Description |
+|---|---|---|
+| `nom` | string | Optionnel |
+| `prenom` | string | Optionnel |
+| `photo_profil` | file | Image (jpg, png, webp...) |
+
+### Réponse succès `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Profil mis à jour.",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "jean.dupont@email.com",
+    "nom": "Dupont",
+    "prenom": "Jean",
+    "role": "client",
+    "photo_profil": "http://localhost:8000/media/profils/photo.jpg",
+    "created_at": "2024-11-15T10:30:00Z",
+    "updated_at": "2024-11-15T11:00:00Z",
+    "profil_photographe": null
+  }
+}
+```
+
+> 💡 `photo_profil` est une URL complète — utilise-la directement dans un `<img src="..." />`.
+
+---
+
+## 2. Supprimer sa photo de profil
+
+**`DELETE /api/auth/profil/photo/`**
+
+Aucun corps requis.
+
+### Réponse succès `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Photo de profil supprimée."
+}
+```
+
+---
+
+## 3. Modifier le profil photographe *(photographes uniquement)*
+
+Met à jour bio, adresse et/ou photo de couverture.  
+Retourne `403` si l'utilisateur n'est pas photographe.
+
+**`PATCH /api/auth/profil/photographe/`**
+
+### Sans photo — `application/json`
+
+```json
+{
+  "bio": "Photographe de mariage basée à Paris, spécialisée en portraits.",
+  "adresse": "Paris, France"
+}
+```
+
+### Avec photo — `multipart/form-data`
+
+| Champ | Type | Description |
+|---|---|---|
+| `bio` | string | Optionnel |
+| `adresse` | string | Optionnel |
+| `photo_couverture` | file | Image de couverture du profil |
+
+### Réponse succès `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Profil photographe mis à jour.",
+  "data": {
+    "id": "660e9500-f30c-52e5-b827-557766551111",
+    "bio": "Photographe de mariage basée à Paris, spécialisée en portraits.",
+    "adresse": "Paris, France",
+    "photo_couverture": "http://localhost:8000/media/couvertures/cover.jpg",
+    "created_at": "2024-11-15T10:30:00Z"
+  }
+}
+```
+
+### Réponse erreur `403 Forbidden`
+
+```json
+{
+  "detail": "Accès réservé aux photographes."
+}
+```
+
+---
+
+## 4. Supprimer la photo de couverture *(photographes uniquement)*
+
+**`DELETE /api/auth/profil/photographe/photo-couverture/`**
+
+Aucun corps requis.
+
+### Réponse succès `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Photo de couverture supprimée."
+}
+```
+
+---
+
+## 5. Changer son mot de passe
+
+**`POST /api/auth/profil/changer-mot-de-passe/`**
+
+### Corps de la requête
+
+```json
+{
+  "ancien_mot_de_passe": "AncienMotDePasse123!",
+  "nouveau_mot_de_passe": "NouveauMotDePasse456!",
+  "confirmation": "NouveauMotDePasse456!"
+}
+```
+
+| Champ | Requis | Description |
+|---|---|---|
+| `ancien_mot_de_passe` | ✅ | Mot de passe actuel |
+| `nouveau_mot_de_passe` | ✅ | Doit respecter les règles Django (min 8 car., pas trop commun...) |
+| `confirmation` | ✅ | Doit être identique à `nouveau_mot_de_passe` |
+
+### Réponse succès `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Mot de passe modifié avec succès."
+}
+```
+
+### Réponse erreur `400 Bad Request`
+
+```json
+{
+  "success": false,
+  "errors": {
+    "ancien_mot_de_passe": ["L'ancien mot de passe est incorrect."],
+    "confirmation": ["Les mots de passe ne correspondent pas."]
+  }
+}
+```
+
+> ⚠️ Après un changement de mot de passe, les tokens JWT restent valides jusqu'à expiration.  
+> Si tu veux forcer une reconnexion, appelle aussi `/api/auth/deconnexion/` pour blacklister le refresh token.
+
+---
+
+## Exemples React
+
+### Modifier le profil avec photo (FormData)
+
+```javascript
+const modifierProfil = async (nom, prenom, fichierPhoto) => {
+  const formData = new FormData();
+  if (nom) formData.append("nom", nom);
+  if (prenom) formData.append("prenom", prenom);
+  if (fichierPhoto) formData.append("photo_profil", fichierPhoto);
+
+  const res = await api.patch("/auth/profil/", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+};
+```
+
+### Modifier sans photo (JSON)
+
+```javascript
+const modifierNom = async (nom, prenom) => {
+  const res = await api.patch("/auth/profil/", { nom, prenom });
+  return res.data;
+};
+```
+
+### Changer le mot de passe
+
+```javascript
+const changerMotDePasse = async (ancien, nouveau, confirmation) => {
+  const res = await api.post("/auth/profil/changer-mot-de-passe/", {
+    ancien_mot_de_passe: ancien,
+    nouveau_mot_de_passe: nouveau,
+    confirmation,
+  });
+  return res.data;
+};
+```
+
+### Input file pour la photo
+
+```jsx
+<input
+  type="file"
+  accept="image/*"
+  onChange={(e) => modifierProfil(null, null, e.target.files[0])}
+/>
+```
+
+---
+
+*Documentation — module profil. Voir aussi `README_API_AUTH.md` pour l'authentification.*

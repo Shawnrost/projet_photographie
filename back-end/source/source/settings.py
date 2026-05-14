@@ -166,3 +166,8 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
 }
+
+# ── Fichiers media (photos de profil, couvertures) ──────────
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+

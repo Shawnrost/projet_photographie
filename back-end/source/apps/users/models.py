@@ -32,7 +32,8 @@ class Utilisateur(AbstractUser):
         default=UserRole.CLIENT
     )
 
-    photo_profil = models.TextField(
+    photo_profil = models.ImageField(
+        upload_to="profils/",
         blank=True,
         null=True
     )
@@ -73,7 +74,8 @@ class ProfilPhotographe(models.Model):
         null=True
     )
 
-    photo_couverture = models.TextField(
+    photo_couverture = models.ImageField(
+        upload_to="couvertures/",
         blank=True,
         null=True
     )
