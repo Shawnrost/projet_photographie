@@ -124,7 +124,7 @@ class ModifierProfilView(APIView):
     def patch(self, request):
         try:
             utilisateur = ProfilService.modifier_profil(
-                request.user, request.data, request.FILES
+                request.user, request.data
             )
         except Exception as e:
             return Response(
@@ -168,7 +168,7 @@ class ModifierProfilPhotographeView(APIView):
     def patch(self, request):
         try:
             profil = ProfilService.modifier_profil_photographe(
-                request.user, request.data, request.FILES
+                request.user, request.data
             )
         except Exception as e:
             return Response(

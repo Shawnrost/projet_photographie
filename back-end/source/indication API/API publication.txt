@@ -1,0 +1,324 @@
+# 📡 API Publications — Documentation Frontend
+
+> **Base URL :** `http://localhost:8000/api/publications/`  
+> **Auth :** `Authorization: Bearer <access_token>` (uniquement sur les endpoints qui le requièrent)  
+> **Pagination :** tous les endpoints liste supportent `?page=1&page_size=12`
+
+---
+
+## Sommaire
+
+- [Liste des publications](#1-liste-des-publications)
+- [Détail d'une publication](#2-détail-dune-publication)
+- [Créer une publication](#3-créer-une-publication-photographe)
+- [Modifier une publication](#4-modifier-une-publication-photographe-propriétaire)
+- [Supprimer une publication](#5-supprimer-une-publication-photographe-propriétaire)
+- [Like / Unlike](#6-like--unlike)
+- [Mes publications](#7-mes-publications-photographe)
+- [Catégories](#8-catégories)
+- [Tags — autocomplétion](#9-tags--autocomplétion)
+- [Filtres et recherche](#filtres-et-recherche)
+- [Structure des objets](#structure-des-objets)
+
+---
+
+## 1. Liste des publications
+
+**`GET /api/publications/`** — Public, pas de token requis
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "pagination": {
+    "total": 48,
+    "pages": 4,
+    "page_actuelle": 1,
+    "page_size": 12,
+    "suivante": "http://localhost:8000/api/publications/?page=2",
+    "precedente": null
+  },
+  "data": [ /* liste de publications */ ]
+}
+```
+
+---
+
+## 2. Détail d'une publication
+
+**`GET /api/publications/<uuid>/`** — Public
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "...",
+    "titre": "Coucher de soleil sur les Calanques",
+    "description": "Prise à Marseille en juillet.",
+    "image_url": "http://localhost:8000/media/publications/photo.jpg",
+    "type": "vente",
+    "prix": "120.00",
+    "categories": [{ "id": "...", "nom": "Nature", "description": null }],
+    "tags": [{ "id": "...", "nom": "golden-hour" }, { "id": "...", "nom": "marseille" }],
+    "nombre_likes": 34,
+    "a_like": false,
+    "photographe_nom": "Marie Martin",
+    "photographe_photo": "http://localhost:8000/media/profils/marie.jpg",
+    "photographe_id": "...",
+    "is_active": true,
+    "created_at": "2024-11-15T10:30:00Z",
+    "updated_at": "2024-11-15T11:00:00Z"
+  }
+}
+```
+
+---
+
+## 3. Créer une publication *(photographe)*
+
+**`POST /api/publications/`** — 🔒 Photographe requis  
+**Content-Type :** `multipart/form-data`
+
+| Champ | Type | Requis | Description |
+|---|---|---|---|
+| `titre` | string | ✅ | |
+| `description` | string | ❌ | |
+| `image_url` | file | ✅ | L'image de la publication |
+| `type` | string | ❌ | `"publicite"` (défaut) ou `"vente"` |
+| `prix` | number | ⚠️ | Obligatoire si `type = "vente"` |
+| `categories` | UUID[] | ❌ | Liste d'UUIDs de catégories existantes |
+| `tags` | string[] | ❌ | Liste de noms de tags (ex: `["golden-hour", "nature"]`) |
+| `is_active` | boolean | ❌ | `true` par défaut |
+
+> ⚠️ **Envoi des listes en FormData :**  
+> FormData ne supporte pas nativement les tableaux JSON. Envoie chaque valeur séparément :
+> ```javascript
+> formData.append("categories", "uuid-1");
+> formData.append("categories", "uuid-2");
+> formData.append("tags", "golden-hour");
+> formData.append("tags", "nature");
+> ```
+
+### Réponse `201 Created`
+
+```json
+{
+  "success": true,
+  "message": "Publication créée.",
+  "data": { /* PublicationDetail */ }
+}
+```
+
+### Réponse erreur `400`
+
+```json
+{
+  "success": false,
+  "errors": {
+    "prix": ["Le prix est obligatoire pour une publication de type vente."]
+  }
+}
+```
+
+---
+
+## 4. Modifier une publication *(photographe propriétaire)*
+
+**`PATCH /api/publications/<uuid>/`** — 🔒 Propriétaire uniquement  
+Tous les champs sont optionnels.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Publication mise à jour.",
+  "data": { /* PublicationDetail */ }
+}
+```
+
+### Réponse `403` si non propriétaire
+
+```json
+{
+  "success": false,
+  "message": "Vous n'êtes pas le propriétaire de cette publication."
+}
+```
+
+---
+
+## 5. Supprimer une publication *(photographe propriétaire)*
+
+**`DELETE /api/publications/<uuid>/`** — 🔒 Propriétaire uniquement
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Publication supprimée."
+}
+```
+
+---
+
+## 6. Like / Unlike
+
+Toggle : si déjà liké → unlike, sinon → like.
+
+**`POST /api/publications/<uuid>/like/`** — 🔒 Authentifié requis
+
+Aucun corps requis.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "liked": true,
+    "nombre_likes": 35
+  }
+}
+```
+
+> 💡 Utilise `a_like` dans la liste pour savoir si le bouton doit être "actif" au chargement.
+
+---
+
+## 7. Mes publications *(photographe)*
+
+**`GET /api/publications/mes-publications/`** — 🔒 Photographe requis  
+Retourne toutes les publications du photographe connecté, actives ET inactives.
+
+Même format de réponse paginée que [liste](#1-liste-des-publications).
+
+---
+
+## 8. Catégories
+
+### Lister toutes les catégories
+
+**`GET /api/publications/categories/`** — Public
+
+```json
+{
+  "success": true,
+  "data": [
+    { "id": "...", "nom": "Portrait", "description": null },
+    { "id": "...", "nom": "Mariage", "description": "Photos de mariages" },
+    { "id": "...", "nom": "Nature", "description": null }
+  ]
+}
+```
+
+### Créer une catégorie *(admin uniquement)*
+
+**`POST /api/publications/categories/`** — 🔒 Admin requis
+
+```json
+{
+  "nom": "Architecture",
+  "description": "Photographie de bâtiments et lieux"
+}
+```
+
+---
+
+## 9. Tags — autocomplétion
+
+**`GET /api/publications/tags/?q=<terme>`** — Public
+
+```
+GET /api/publications/tags/?q=gold
+```
+
+```json
+{
+  "success": true,
+  "data": [
+    { "id": "...", "nom": "golden-hour" },
+    { "id": "...", "nom": "gold-coast" }
+  ]
+}
+```
+
+> 💡 À utiliser pour un champ de saisie avec suggestions en temps réel.
+
+---
+
+## Filtres et recherche
+
+Tous combinables sur `GET /api/publications/` :
+
+| Paramètre | Valeur | Exemple |
+|---|---|---|
+| `type` | `publicite` ou `vente` | `?type=vente` |
+| `categorie` | UUID d'une catégorie | `?categorie=<uuid>` |
+| `tag` | nom du tag | `?tag=golden-hour` |
+| `photographe` | UUID du profil photographe | `?photographe=<uuid>` |
+| `q` | recherche libre (titre, description, tags) | `?q=mariage+paris` |
+| `page` | numéro de page | `?page=2` |
+| `page_size` | nombre par page (max 50) | `?page_size=24` |
+
+**Exemple combiné :**
+```
+GET /api/publications/?type=vente&categorie=<uuid>&q=paris&page=1&page_size=12
+```
+
+---
+
+## Structure des objets
+
+```typescript
+interface Publication {
+  id: string;
+  titre: string;
+  description: string | null;
+  image_url: string;          // URL complète vers le fichier media
+  type: "publicite" | "vente";
+  prix: string | null;        // Décimal sous forme de string ex: "120.00"
+  categories: Categorie[];
+  tags: Tag[];
+  nombre_likes: number;
+  a_like: boolean;            // true si l'utilisateur connecté a liké
+  photographe_nom: string;
+  photographe_photo: string | null;
+  photographe_id: string;     // UUID du ProfilPhotographe (détail uniquement)
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;         // détail uniquement
+}
+
+interface Categorie {
+  id: string;
+  nom: string;
+  description: string | null;
+}
+
+interface Tag {
+  id: string;
+  nom: string;
+}
+
+interface PaginatedResponse<T> {
+  success: boolean;
+  pagination: {
+    total: number;
+    pages: number;
+    page_actuelle: number;
+    page_size: number;
+    suivante: string | null;
+    precedente: string | null;
+  };
+  data: T[];
+}
+```
+
+---
+
+*Documentation — module publications. Voir aussi `README_API_AUTH.md` et `README_API_PROFIL.md`.*
