@@ -25,7 +25,7 @@ urlpatterns = [
 
     # API Authentification
     path("api/auth/", include("apps.users.urls", namespace="users")),
-    # path("api/publications/", include("apps.publications.urls")),
+    path("api/publications/", include("apps.publications.urls")),
     # path("api/commandes/", include("apps.commandes.urls")),
     # path("api/conversations/", include("apps.conversations.urls")),
     # path("api/abonnements/", include("apps.abonnements.urls")),

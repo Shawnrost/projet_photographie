@@ -5,7 +5,7 @@ from .models import Utilisateur, ProfilPhotographe, UserRole
 
 
 # ─────────────────────────────────────────────
-# Auth (inchangé)
+# Auth
 # ─────────────────────────────────────────────
 
 class AuthService:
@@ -44,32 +44,31 @@ class AuthService:
 class ProfilService:
 
     @staticmethod
-    def modifier_profil(utilisateur: Utilisateur, data: dict, files: dict) -> Utilisateur:
+    def modifier_profil(utilisateur: Utilisateur, data) -> Utilisateur:
         """
-        Met à jour les champs de base de l'utilisateur (nom, prenom, photo_profil).
-        data  : request.data
-        files : request.FILES
+        data = request.data (QueryDict multipart).
+        MultiPartParser peuple request.data avec les fichiers automatiquement.
         """
         from .serializers import ModifierProfilSerializer
         serializer = ModifierProfilSerializer(
             utilisateur,
-            data={**data, **files},
+            data=data,
             partial=True
         )
         serializer.is_valid(raise_exception=True)
         return serializer.save()
 
     @staticmethod
-    def modifier_profil_photographe(utilisateur: Utilisateur, data: dict, files: dict) -> ProfilPhotographe:
+    def modifier_profil_photographe(utilisateur: Utilisateur, data) -> ProfilPhotographe:
         """
-        Met à jour le profil étendu d'un photographe (bio, adresse, photo_couverture).
+        data = request.data (QueryDict multipart).
         Crée le profil s'il n'existe pas (sécurité).
         """
         from .serializers import ModifierProfilPhotographeSerializer
         profil, _ = ProfilPhotographe.objects.get_or_create(utilisateur=utilisateur)
         serializer = ModifierProfilPhotographeSerializer(
             profil,
-            data={**data, **files},
+            data=data,
             partial=True
         )
         serializer.is_valid(raise_exception=True)
@@ -77,10 +76,6 @@ class ProfilService:
 
     @staticmethod
     def changer_mot_de_passe(utilisateur: Utilisateur, data: dict, request) -> None:
-        """
-        Valide et applique le changement de mot de passe.
-        Lève une ValidationError (DRF) en cas d'erreur.
-        """
         from .serializers import ChangerMotDePasseSerializer
         serializer = ChangerMotDePasseSerializer(data=data, context={"request": request})
         serializer.is_valid(raise_exception=True)
@@ -89,7 +84,6 @@ class ProfilService:
 
     @staticmethod
     def supprimer_photo_profil(utilisateur: Utilisateur) -> None:
-        """Supprime la photo de profil du disque et de la base."""
         if utilisateur.photo_profil:
             utilisateur.photo_profil.delete(save=False)
             utilisateur.photo_profil = None
@@ -97,7 +91,6 @@ class ProfilService:
 
     @staticmethod
     def supprimer_photo_couverture(utilisateur: Utilisateur) -> None:
-        """Supprime la photo de couverture du photographe."""
         try:
             profil = utilisateur.profil_photographe
         except ProfilPhotographe.DoesNotExist:
