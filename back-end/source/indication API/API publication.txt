@@ -18,6 +18,7 @@
 - [Catégories](#8-catégories)
 - [Tags — autocomplétion](#9-tags--autocomplétion)
 - [Filtres et recherche](#filtres-et-recherche)
+- [Droits de publication selon abonnement](#droits-de-publication-selon-abonnement)
 - [Structure des objets](#structure-des-objets)
 
 ---
@@ -58,11 +59,12 @@
     "id": "...",
     "titre": "Coucher de soleil sur les Calanques",
     "description": "Prise à Marseille en juillet.",
-    "image_url": "http://localhost:8000/media/publications/photo.jpg",
+    "image_affichee": "http://localhost:8000/media/publications/filigranes/wm_photo.jpg",
+    "est_vendue": false,
     "type": "vente",
     "prix": "120.00",
     "categories": [{ "id": "...", "nom": "Nature", "description": null }],
-    "tags": [{ "id": "...", "nom": "golden-hour" }, { "id": "...", "nom": "marseille" }],
+    "tags": [{ "id": "...", "nom": "golden-hour" }],
     "nombre_likes": 34,
     "a_like": false,
     "photographe_nom": "Marie Martin",
@@ -75,6 +77,12 @@
 }
 ```
 
+> 💡 **`image_affichee`** est l'unique champ image à utiliser côté React :
+> - Tant que `est_vendue = false` → c'est la version **avec filigrane**
+> - Quand `est_vendue = true` → c'est automatiquement la version **originale sans filigrane**
+>
+> Tu n'as pas à gérer cette logique côté frontend — le backend s'en occupe.
+
 ---
 
 ## 3. Créer une publication *(photographe)*
@@ -82,25 +90,27 @@
 **`POST /api/publications/`** — 🔒 Photographe requis  
 **Content-Type :** `multipart/form-data`
 
+> ⚠️ **Le photographe doit avoir un abonnement actif.** Voir [droits selon abonnement](#droits-de-publication-selon-abonnement).
+
 | Champ | Type | Requis | Description |
 |---|---|---|---|
 | `titre` | string | ✅ | |
 | `description` | string | ❌ | |
-| `image_url` | file | ✅ | L'image de la publication |
+| `image_originale` | file | ✅ | L'image de la publication |
 | `type` | string | ❌ | `"publicite"` (défaut) ou `"vente"` |
 | `prix` | number | ⚠️ | Obligatoire si `type = "vente"` |
 | `categories` | UUID[] | ❌ | Liste d'UUIDs de catégories existantes |
-| `tags` | string[] | ❌ | Liste de noms de tags (ex: `["golden-hour", "nature"]`) |
+| `tags` | string[] | ❌ | Liste de noms de tags |
 | `is_active` | boolean | ❌ | `true` par défaut |
 
-> ⚠️ **Envoi des listes en FormData :**  
-> FormData ne supporte pas nativement les tableaux JSON. Envoie chaque valeur séparément :
+> ⚠️ **Envoi des listes en FormData :**
 > ```javascript
 > formData.append("categories", "uuid-1");
-> formData.append("categories", "uuid-2");
 > formData.append("tags", "golden-hour");
 > formData.append("tags", "nature");
 > ```
+
+> 🎨 Le filigrane est généré **automatiquement** côté serveur à l'upload. Tu envoies uniquement `image_originale`.
 
 ### Réponse `201 Created`
 
@@ -112,15 +122,12 @@
 }
 ```
 
-### Réponse erreur `400`
+### Réponses erreur
 
 ```json
-{
-  "success": false,
-  "errors": {
-    "prix": ["Le prix est obligatoire pour une publication de type vente."]
-  }
-}
+{ "success": false, "errors": "Vous devez avoir un abonnement actif pour publier." }
+{ "success": false, "errors": "La publication de type 'vente' est réservée aux abonnés Premium." }
+{ "success": false, "errors": { "prix": ["Le prix est obligatoire pour une publication de type vente."] } }
 ```
 
 ---
@@ -130,6 +137,8 @@
 **`PATCH /api/publications/<uuid>/`** — 🔒 Propriétaire uniquement  
 Tous les champs sont optionnels.
 
+> 💡 Si une nouvelle `image_originale` est envoyée, le filigrane est automatiquement régénéré.
+
 ### Réponse `200 OK`
 
 ```json
@@ -137,15 +146,6 @@ Tous les champs sont optionnels.
   "success": true,
   "message": "Publication mise à jour.",
   "data": { /* PublicationDetail */ }
-}
-```
-
-### Réponse `403` si non propriétaire
-
-```json
-{
-  "success": false,
-  "message": "Vous n'êtes pas le propriétaire de cette publication."
 }
 ```
 
@@ -168,11 +168,7 @@ Tous les champs sont optionnels.
 
 ## 6. Like / Unlike
 
-Toggle : si déjà liké → unlike, sinon → like.
-
 **`POST /api/publications/<uuid>/like/`** — 🔒 Authentifié requis
-
-Aucun corps requis.
 
 ### Réponse `200 OK`
 
@@ -186,8 +182,6 @@ Aucun corps requis.
 }
 ```
 
-> 💡 Utilise `a_like` dans la liste pour savoir si le bouton doit être "actif" au chargement.
-
 ---
 
 ## 7. Mes publications *(photographe)*
@@ -195,47 +189,33 @@ Aucun corps requis.
 **`GET /api/publications/mes-publications/`** — 🔒 Photographe requis  
 Retourne toutes les publications du photographe connecté, actives ET inactives.
 
-Même format de réponse paginée que [liste](#1-liste-des-publications).
-
 ---
 
 ## 8. Catégories
 
-### Lister toutes les catégories
-
-**`GET /api/publications/categories/`** — Public
+### Lister — `GET /api/publications/categories/` — Public
 
 ```json
 {
   "success": true,
   "data": [
     { "id": "...", "nom": "Portrait", "description": null },
-    { "id": "...", "nom": "Mariage", "description": "Photos de mariages" },
-    { "id": "...", "nom": "Nature", "description": null }
+    { "id": "...", "nom": "Mariage", "description": "Photos de mariages" }
   ]
 }
 ```
 
-### Créer une catégorie *(admin uniquement)*
-
-**`POST /api/publications/categories/`** — 🔒 Admin requis
+### Créer — `POST /api/publications/categories/` — 🔒 Admin uniquement
 
 ```json
-{
-  "nom": "Architecture",
-  "description": "Photographie de bâtiments et lieux"
-}
+{ "nom": "Architecture", "description": "Photographie de bâtiments" }
 ```
 
 ---
 
 ## 9. Tags — autocomplétion
 
-**`GET /api/publications/tags/?q=<terme>`** — Public
-
-```
-GET /api/publications/tags/?q=gold
-```
+**`GET /api/publications/tags/?q=<terme>`** — Public, max 10 résultats
 
 ```json
 {
@@ -247,13 +227,9 @@ GET /api/publications/tags/?q=gold
 }
 ```
 
-> 💡 À utiliser pour un champ de saisie avec suggestions en temps réel.
-
 ---
 
 ## Filtres et recherche
-
-Tous combinables sur `GET /api/publications/` :
 
 | Paramètre | Valeur | Exemple |
 |---|---|---|
@@ -261,14 +237,24 @@ Tous combinables sur `GET /api/publications/` :
 | `categorie` | UUID d'une catégorie | `?categorie=<uuid>` |
 | `tag` | nom du tag | `?tag=golden-hour` |
 | `photographe` | UUID du profil photographe | `?photographe=<uuid>` |
-| `q` | recherche libre (titre, description, tags) | `?q=mariage+paris` |
+| `q` | recherche libre | `?q=mariage+paris` |
 | `page` | numéro de page | `?page=2` |
 | `page_size` | nombre par page (max 50) | `?page_size=24` |
 
-**Exemple combiné :**
-```
-GET /api/publications/?type=vente&categorie=<uuid>&q=paris&page=1&page_size=12
-```
+---
+
+## Droits de publication selon abonnement
+
+| Abonnement | `publicite` | `vente` |
+|---|---|---|
+| Aucun / expiré | ❌ | ❌ |
+| Basic | ✅ | ❌ |
+| Premium | ✅ | ✅ |
+
+> Si le photographe n'a pas d'abonnement actif, l'API retourne `400` avec :
+> ```json
+> { "success": false, "errors": "Vous devez avoir un abonnement actif pour publier." }
+> ```
 
 ---
 
@@ -279,19 +265,20 @@ interface Publication {
   id: string;
   titre: string;
   description: string | null;
-  image_url: string;          // URL complète vers le fichier media
+  image_affichee: string;   // URL unique — filigrane OU originale selon est_vendue
+  est_vendue: boolean;      // true = photo achetée, image_affichee = originale sans filigrane
   type: "publicite" | "vente";
-  prix: string | null;        // Décimal sous forme de string ex: "120.00"
+  prix: string | null;
   categories: Categorie[];
   tags: Tag[];
   nombre_likes: number;
-  a_like: boolean;            // true si l'utilisateur connecté a liké
+  a_like: boolean;
   photographe_nom: string;
   photographe_photo: string | null;
-  photographe_id: string;     // UUID du ProfilPhotographe (détail uniquement)
+  photographe_id: string;   // détail uniquement
   is_active: boolean;
   created_at: string;
-  updated_at: string;         // détail uniquement
+  updated_at: string;       // détail uniquement
 }
 
 interface Categorie {
@@ -304,21 +291,8 @@ interface Tag {
   id: string;
   nom: string;
 }
-
-interface PaginatedResponse<T> {
-  success: boolean;
-  pagination: {
-    total: number;
-    pages: number;
-    page_actuelle: number;
-    page_size: number;
-    suivante: string | null;
-    precedente: string | null;
-  };
-  data: T[];
-}
 ```
 
 ---
 
-*Documentation — module publications. Voir aussi `README_API_AUTH.md` et `README_API_PROFIL.md`.*
+*Documentation — module publications. Voir aussi `README_API_AUTH.md`, `README_API_PROFIL.md`, `README_API_ABONNEMENTS.md`.*
