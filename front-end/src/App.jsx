@@ -1,84 +1,71 @@
 import React from 'react';
-import { motion, useScroll, useSpring } from 'framer-motion';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 
-// Importation de tes composants (assure-toi que les chemins sont corrects)
-import Navbar from './components/shared/Navbar';
-import Hero from './components/vitrine/Hero';
-import Gallery from './components/vitrine/Gallery';
-import Features from './components/vitrine/Features';
-import Pricing from './components/vitrine/Pricing';
+// Importation des composants de la Vitrine
+import EnTete from './components/vitrine/EnTete.jsx';
+import Banniere from './components/vitrine/Banniere.jsx';
 
-function App() {
-  // Barre de progression de lecture (en haut de l'écran)
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001
-  });
+// Importation des composants d'Authentification
+import Connexion from './components/connexion/Connexion.jsx';
+import InscriptionMain from './components/connexion/Inscription.jsx';
+
+// Composant pour animer les transitions de pages
+const AnimatedRoutes = () => {
+  const location = useLocation();
 
   return (
-    <div className="relative bg-white selection:bg-sage-200 selection:text-sage-900">
-      
-      {/* Barre de progression d'animation maximale */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-sage-500 origin-left z-[100]"
-        style={{ scaleX }}
-      />
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        
+        {/* ROUTE ACCUEIL : En-tête + Bannière */}
+        <Route 
+          path="/" 
+          element={
+            <>
+              <EnTete />
+              <Banniere />
+            </>
+          } 
+        />
 
-      {/* Navigation */}
-      <Navbar />
+        {/* ROUTE CONNEXION */}
+        <Route 
+          path="/connexion" 
+          element={<Connexion />} 
+        />
 
-      <main>
-        {/* 1. Hero Slider Cinématique avec Vert Sauge */}
-        <section id="accueil">
-          <Hero />
-        </section>
+        {/* ROUTE INSCRIPTION (Multi-étapes) */}
+        <Route 
+          path="/inscription" 
+          element={<InscriptionMain />} 
+        />
 
-        {/* 2. Section de transition textuelle artistique */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          transition={{ duration: 1.5 }}
-          className="py-20 text-center bg-white"
-        >
-          <h2 className="text-4xl md:text-6xl font-serif italic text-sage-900/20 select-none">
-            Capturer l'invisible, exposer l'éternel.
-          </h2>
-        </motion.div>
+      </Routes>
+    </AnimatePresence>
+  );
+};
 
-        {/* 3. Galerie Organique & Z-Layout (Images Corrigées) */}
-        <section id="galerie">
-          <Gallery />
-        </section>
-
-        {/* 4. Caractéristiques de l'application (Denses & Animées) */}
-        <section id="services">
-          <Features />
-        </section>
-
-        {/* 5. Tarifs Minimalistes */}
-        <section id="tarifs">
-          <Pricing />
-        </section>
-      </main>
-
-      {/* Footer Minimaliste */}
-      <footer className="py-20 bg-sage-900 text-sage-100 text-center">
-        <div className="container mx-auto px-6">
-          <h2 className="text-3xl font-serif italic mb-6">e-Sary</h2>
-          <p className="text-sage-400 font-light tracking-widest text-xs uppercase mb-8">
-            © 2026 Studio Photographique — Antananarivo
-          </p>
-          <div className="flex justify-center gap-8 text-sm font-light">
-            <a href="#" className="hover:text-white transition-colors">Instagram</a>
-            <a href="#" className="hover:text-white transition-colors">Twitter</a>
-            <a href="#" className="hover:text-white transition-colors">Contact</a>
-          </div>
+function App() {
+  return (
+    <Router>
+      <main className="relative w-full h-screen bg-charcoal overflow-hidden grain">
+        {/* Effet de grain de film global défini dans index.css */}
+        <div className="relative z-10 w-full h-full">
+          <AnimatedRoutes />
         </div>
-      </footer>
-
-    </div>
+        
+        {/* Overlay de texture artistique permanent */}
+        <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03] mix-blend-overlay">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <filter id="noiseFilter">
+              <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+            </filter>
+            <rect width="100%" height="100%" filter="url(#noiseFilter)" />
+          </svg>
+        </div>
+      </main>
+    </Router>
   );
 }
 
