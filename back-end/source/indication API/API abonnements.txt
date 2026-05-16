@@ -1,0 +1,250 @@
+# 📡 API Abonnements — Documentation Frontend
+
+> **Base URL :** `http://localhost:8000/api/abonnements/`  
+> **Auth :** `Authorization: Bearer <access_token>` (sauf tarifs)  
+> **Accès :** tous les endpoints (sauf tarifs) sont réservés aux **photographes**
+
+---
+
+## Sommaire
+
+- [Grille tarifaire](#1-grille-tarifaire)
+- [Souscrire à un abonnement](#2-souscrire-à-un-abonnement)
+- [Vérifier son abonnement actif](#3-vérifier-son-abonnement-actif)
+- [Annuler un abonnement](#4-annuler-un-abonnement)
+- [Historique des abonnements](#5-historique-des-abonnements)
+- [Structure des objets](#structure-des-objets)
+
+---
+
+## 1. Grille tarifaire
+
+**`GET /api/abonnements/tarifs/`** — Public, pas de token requis
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "data": [
+    { "plan": "basic",   "duree": "1_mois",  "prix": 10.0,  "label": "Basic — 1 mois" },
+    { "plan": "basic",   "duree": "3_mois",  "prix": 27.0,  "label": "Basic — 3 mois" },
+    { "plan": "basic",   "duree": "6_mois",  "prix": 48.0,  "label": "Basic — 6 mois" },
+    { "plan": "premium", "duree": "1_mois",  "prix": 25.0,  "label": "Premium — 1 mois" },
+    { "plan": "premium", "duree": "3_mois",  "prix": 67.5,  "label": "Premium — 3 mois" },
+    { "plan": "premium", "duree": "6_mois",  "prix": 120.0, "label": "Premium — 6 mois" }
+  ]
+}
+```
+
+> 💡 Utilise cet endpoint pour afficher la page de tarification sans hardcoder les prix côté React.
+
+---
+
+## 2. Souscrire à un abonnement
+
+**`POST /api/abonnements/souscrire/`** — 🔒 Photographe requis
+
+> ⚠️ Si le photographe a déjà un abonnement actif, il est automatiquement **annulé** avant la souscription du nouveau.
+
+### Corps de la requête
+
+```json
+{
+  "type":  "basic",
+  "duree": "3_mois"
+}
+```
+
+| Champ | Valeurs acceptées |
+|---|---|
+| `type` | `"basic"` \| `"premium"` |
+| `duree` | `"1_mois"` \| `"3_mois"` \| `"6_mois"` |
+
+### Réponse `201 Created`
+
+```json
+{
+  "success": true,
+  "message": "Abonnement souscrit avec succès.",
+  "data": {
+    "id": "...",
+    "type": "basic",
+    "duree": "3_mois",
+    "status": "active",
+    "prix": "27.00",
+    "date_deb": "2024-11-15T10:30:00Z",
+    "date_fin": "2025-02-13T10:30:00Z",
+    "est_actif": true,
+    "jours_restants": 90,
+    "created_at": "2024-11-15T10:30:00Z"
+  }
+}
+```
+
+### Réponse erreur `400`
+
+```json
+{
+  "success": false,
+  "errors": {
+    "type": ["\"gold\" is not a valid choice."]
+  }
+}
+```
+
+---
+
+## 3. Vérifier son abonnement actif
+
+**`GET /api/abonnements/statut/`** — 🔒 Photographe requis
+
+> Cet endpoint **met à jour automatiquement** le statut si `date_fin` est dépassée.  
+> À appeler au chargement du dashboard photographe.
+
+### Réponse — abonnement actif `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "a_abonnement_actif": true,
+    "abonnement": {
+      "id": "...",
+      "type": "premium",
+      "duree": "6_mois",
+      "status": "active",
+      "prix": "120.00",
+      "date_deb": "2024-11-15T10:30:00Z",
+      "date_fin": "2025-05-14T10:30:00Z",
+      "est_actif": true,
+      "jours_restants": 180,
+      "created_at": "2024-11-15T10:30:00Z"
+    }
+  }
+}
+```
+
+### Réponse — aucun abonnement actif `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "a_abonnement_actif": false,
+    "abonnement": null
+  }
+}
+```
+
+> 💡 Utilise `a_abonnement_actif` pour afficher ou masquer les fonctionnalités premium dans l'interface.
+
+---
+
+## 4. Annuler un abonnement
+
+**`POST /api/abonnements/<uuid>/annuler/`** — 🔒 Photographe requis
+
+### Corps de la requête
+
+```json
+{
+  "confirmation": true
+}
+```
+
+> Le champ `confirmation: true` est obligatoire — protection contre les annulations accidentelles.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Abonnement annulé.",
+  "data": {
+    "id": "...",
+    "type": "basic",
+    "status": "annule",
+    "est_actif": false,
+    "jours_restants": 0,
+    ...
+  }
+}
+```
+
+### Réponses erreur
+
+```json
+{ "success": false, "message": "Cet abonnement ne vous appartient pas." }
+{ "success": false, "message": "Seul un abonnement actif peut être annulé." }
+```
+
+---
+
+## 5. Historique des abonnements
+
+**`GET /api/abonnements/historique/`** — 🔒 Photographe requis
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "...",
+      "type": "premium",
+      "duree": "6_mois",
+      "status": "expire",
+      "prix": "120.00",
+      "date_deb": "2024-05-01T00:00:00Z",
+      "date_fin": "2024-11-01T00:00:00Z",
+      "est_actif": false,
+      "jours_restants": 0,
+      "created_at": "2024-05-01T00:00:00Z"
+    },
+    {
+      "id": "...",
+      "type": "basic",
+      "duree": "3_mois",
+      "status": "active",
+      ...
+    }
+  ]
+}
+```
+
+---
+
+## Structure des objets
+
+```typescript
+interface Abonnement {
+  id: string;
+  type: "basic" | "premium";
+  duree: "1_mois" | "3_mois" | "6_mois";
+  status: "active" | "expire" | "annule";
+  prix: string;             // Décimal sous forme de string ex: "27.00"
+  date_deb: string;         // ISO 8601
+  date_fin: string;         // ISO 8601
+  est_actif: boolean;       // true si status=active ET date_fin non dépassée
+  jours_restants: number;   // 0 si expiré
+  created_at: string;
+}
+
+interface StatutAbonnement {
+  a_abonnement_actif: boolean;
+  abonnement: Abonnement | null;
+}
+
+interface Tarif {
+  plan: "basic" | "premium";
+  duree: "1_mois" | "3_mois" | "6_mois";
+  prix: number;
+  label: string;
+}
+```
+
+---
+
+*Documentation — module abonnements. Voir aussi `README_API_AUTH.md`, `README_API_PROFIL.md`, `README_API_PUBLICATIONS.md`.*
