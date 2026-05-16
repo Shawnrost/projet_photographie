@@ -1,7 +1,50 @@
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
-from .models import Publication, Reaction, Categorie, Tag
+from .models import Publication, Reaction, Categorie, Tag, PublicationType
+from .watermark import appliquer_filigrane
 from apps.users.models import Utilisateur
+from apps.abonnements.models import SubscriptionStatus, SubscriptionPlan
+
+
+class AbonnementValidator:
+    """
+    Vérifie les droits de publication selon l'abonnement actif du photographe.
+    """
+
+    @staticmethod
+    def get_abonnement_actif(photographe):
+        """Retourne l'abonnement actif ou None."""
+        from apps.abonnements.models import Abonnement
+        try:
+            abonnement = Abonnement.objects.filter(
+                photographe=photographe,
+                status=SubscriptionStatus.ACTIVE
+            ).latest("date_fin")
+            # Synchroniser le statut si expiré
+            abonnement.synchroniser_statut()
+            abonnement.refresh_from_db()
+            return abonnement if abonnement.est_actif else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def verifier_droits_publication(photographe, type_publication: str) -> None:
+        """
+        Vérifie que le photographe a les droits pour ce type de publication.
+        Lève ValueError si non autorisé.
+        """
+        abonnement = AbonnementValidator.get_abonnement_actif(photographe)
+
+        if abonnement is None:
+            raise ValueError(
+                "Vous devez avoir un abonnement actif pour publier."
+            )
+
+        if type_publication == PublicationType.VENTE:
+            if abonnement.type != SubscriptionPlan.PREMIUM:
+                raise ValueError(
+                    "La publication de type 'vente' est réservée aux abonnés Premium."
+                )
 
 
 class PublicationService:
@@ -9,38 +52,98 @@ class PublicationService:
     @staticmethod
     def creer_publication(photographe_profil, data) -> Publication:
         """
-        data = request.data (QueryDict multipart).
-        Avec MultiPartParser, DRF fusionne automatiquement les fichiers dans
-        request.data — pas besoin de passer request.FILES séparément.
+        Crée une publication avec filigrane automatique.
+        Vérifie les droits selon l'abonnement actif.
         """
         from .serializers import PublicationCreateSerializer
+
+        # Vérifier les droits avant de valider le reste
+        type_publication = data.get("type", PublicationType.PUBLICITE)
+        if isinstance(type_publication, list):
+            type_publication = type_publication[0]
+
+        AbonnementValidator.verifier_droits_publication(
+            photographe_profil, type_publication
+        )
+
         serializer = PublicationCreateSerializer(data=data)
         serializer.is_valid(raise_exception=True)
-        return serializer.save(photographe=photographe_profil)
+
+        # Extraire l'image avant la sauvegarde pour générer le filigrane
+        image_originale = serializer.validated_data.get("image_originale")
+
+        publication = serializer.save(photographe=photographe_profil)
+
+        # Générer et sauvegarder le filigrane
+        if image_originale:
+            try:
+                image_originale.seek(0)
+                filigrane = appliquer_filigrane(image_originale)
+                publication.image_filigrane.save(
+                    filigrane.name,
+                    filigrane,
+                    save=True
+                )
+            except Exception as e:
+                # Si le filigrane échoue, la publication reste créée sans filigrane
+                print(f"[WATERMARK] Erreur génération filigrane : {e}")
+
+        return publication
 
     @staticmethod
     def modifier_publication(publication: Publication, data) -> Publication:
         from .serializers import PublicationCreateSerializer
+
+        # Si le type change, vérifier les nouveaux droits
+        nouveau_type = data.get("type")
+        if nouveau_type:
+            if isinstance(nouveau_type, list):
+                nouveau_type = nouveau_type[0]
+            AbonnementValidator.verifier_droits_publication(
+                publication.photographe, nouveau_type
+            )
+
         serializer = PublicationCreateSerializer(
-            publication,
-            data=data,
-            partial=True
+            publication, data=data, partial=True
         )
         serializer.is_valid(raise_exception=True)
-        return serializer.save()
+
+        # Si une nouvelle image est envoyée, régénérer le filigrane
+        nouvelle_image = serializer.validated_data.get("image_originale")
+        publication = serializer.save()
+
+        if nouvelle_image:
+            try:
+                # Supprimer l'ancien filigrane
+                if publication.image_filigrane:
+                    publication.image_filigrane.delete(save=False)
+
+                nouvelle_image.seek(0)
+                filigrane = appliquer_filigrane(nouvelle_image)
+                publication.image_filigrane.save(
+                    filigrane.name, filigrane, save=True
+                )
+            except Exception as e:
+                print(f"[WATERMARK] Erreur régénération filigrane : {e}")
+
+        return publication
 
     @staticmethod
     def supprimer_publication(publication: Publication) -> None:
-        """Suppression réelle + nettoyage de l'image."""
-        if publication.image_url:
-            publication.image_url.delete(save=False)
+        if publication.image_originale:
+            publication.image_originale.delete(save=False)
+        if publication.image_filigrane:
+            publication.image_filigrane.delete(save=False)
         publication.delete()
 
     @staticmethod
-    def archiver_publication(publication: Publication) -> Publication:
-        """Désactive une publication sans la supprimer."""
-        publication.is_active = False
-        publication.save()
+    def marquer_vendue(publication: Publication) -> Publication:
+        """
+        Appelé après un achat confirmé.
+        Passe est_vendue=True — le frontend affiche désormais l'image originale.
+        """
+        publication.est_vendue = True
+        publication.save(update_fields=["est_vendue", "updated_at"])
         return publication
 
     @staticmethod

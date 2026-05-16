@@ -5,22 +5,18 @@ from apps.users.models import ProfilPhotographe, Utilisateur
 
 class PublicationType(models.TextChoices):
     PUBLICITE = "publicite", "Publicité"
-    VENTE = "vente", "Vente"
+    VENTE     = "vente",     "Vente"
 
 
 class Categorie(models.Model):
-    """
-    Catégories fixes créées et gérées par l'admin.
-    Ex : Portrait, Mariage, Nature, Architecture...
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    nom = models.CharField(max_length=100, unique=True)
+    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    nom         = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["nom"]
-        verbose_name = "Catégorie"
+        ordering       = ["nom"]
+        verbose_name   = "Catégorie"
         verbose_name_plural = "Catégories"
 
     def __str__(self):
@@ -28,12 +24,8 @@ class Categorie(models.Model):
 
 
 class Tag(models.Model):
-    """
-    Tags libres créés à la volée par les photographes.
-    Ex : #golden-hour, #noir-et-blanc, #bretagne...
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    nom = models.CharField(max_length=50, unique=True)
+    id         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    nom        = models.CharField(max_length=50, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -44,15 +36,29 @@ class Tag(models.Model):
 
 
 class Publication(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     photographe = models.ForeignKey(
         ProfilPhotographe,
         on_delete=models.CASCADE,
         related_name="publications"
     )
-    titre = models.CharField(max_length=255)
+    titre       = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    image_url = models.ImageField(upload_to="publications/")   # ← ImageField (media/)
+
+    # ── Images ───────────────────────────────────────────────────────────────
+    # Version avec filigrane — affichée publiquement tant que non vendue
+    image_filigrane = models.ImageField(
+        upload_to="publications/filigranes/",
+        blank=True,
+        null=True
+    )
+    # Version originale — générée à l'upload, remise au client après achat
+    image_originale = models.ImageField(
+        upload_to="publications/originales/",
+        blank=True,
+        null=True
+    )
+
     type = models.CharField(
         max_length=20,
         choices=PublicationType.choices,
@@ -64,17 +70,16 @@ class Publication(models.Model):
         blank=True,
         null=True
     )
-    categories = models.ManyToManyField(
-        Categorie,
-        blank=True,
-        related_name="publications"
+    categories = models.ManyToManyField(Categorie, blank=True, related_name="publications")
+    tags       = models.ManyToManyField(Tag,       blank=True, related_name="publications")
+
+    # ── Statut vente ─────────────────────────────────────────────────────────
+    est_vendue = models.BooleanField(
+        default=False,
+        help_text="True quand la photo a été achetée — le filigrane est retiré."
     )
-    tags = models.ManyToManyField(
-        Tag,
-        blank=True,
-        related_name="publications"
-    )
-    is_active = models.BooleanField(default=True)
+
+    is_active  = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -88,10 +93,20 @@ class Publication(models.Model):
     def nombre_likes(self):
         return self.reactions.count()
 
+    @property
+    def image_publique(self):
+        """
+        Retourne l'image à afficher publiquement :
+        - filigrane si la photo n'est pas encore vendue
+        - originale si elle a été achetée
+        """
+        if self.est_vendue:
+            return self.image_originale
+        return self.image_filigrane or self.image_originale
+
 
 class Reaction(models.Model):
-    """Like d'un utilisateur sur une publication. Un seul like par utilisateur."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id          = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     utilisateur = models.ForeignKey(
         Utilisateur,
         on_delete=models.CASCADE,
@@ -102,7 +117,7 @@ class Reaction(models.Model):
         on_delete=models.CASCADE,
         related_name="reactions"
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ("utilisateur", "publication")

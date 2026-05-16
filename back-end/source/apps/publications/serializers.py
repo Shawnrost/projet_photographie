@@ -4,13 +4,13 @@ from .models import Publication, Categorie, Tag, Reaction, PublicationType
 
 class CategorieSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Categorie
+        model  = Categorie
         fields = ["id", "nom", "description"]
 
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Tag
+        model  = Tag
         fields = ["id", "nom"]
 
 
@@ -19,22 +19,38 @@ class TagSerializer(serializers.ModelSerializer):
 # ─────────────────────────────────────────────
 
 class PublicationListSerializer(serializers.ModelSerializer):
-    """Serializer allégé pour les listes (fil d'actualité, recherche...)."""
-    categories = CategorieSerializer(many=True, read_only=True)
-    tags = TagSerializer(many=True, read_only=True)
-    nombre_likes = serializers.IntegerField(read_only=True)
-    photographe_nom = serializers.SerializerMethodField()
+    categories     = CategorieSerializer(many=True, read_only=True)
+    tags           = TagSerializer(many=True, read_only=True)
+    nombre_likes   = serializers.IntegerField(read_only=True)
+    photographe_nom   = serializers.SerializerMethodField()
     photographe_photo = serializers.SerializerMethodField()
-    a_like = serializers.SerializerMethodField()
+    a_like         = serializers.SerializerMethodField()
+    image_affichee = serializers.SerializerMethodField()
 
     class Meta:
-        model = Publication
+        model  = Publication
         fields = [
-            "id", "titre", "description", "image_url", "type", "prix",
-            "categories", "tags", "nombre_likes", "a_like",
+            "id", "titre", "description",
+            "image_affichee",   # ← image publique (filigrane ou originale)
+            "est_vendue",
+            "type", "prix",
+            "categories", "tags",
+            "nombre_likes", "a_like",
             "photographe_nom", "photographe_photo",
             "is_active", "created_at",
         ]
+
+    def get_image_affichee(self, obj):
+        """
+        Retourne l'URL de l'image à afficher :
+        - image_filigrane si non vendue
+        - image_originale si vendue
+        """
+        request = self.context.get("request")
+        image   = obj.image_publique
+        if image and request:
+            return request.build_absolute_uri(image.url)
+        return None
 
     def get_photographe_nom(self, obj):
         u = obj.photographe.utilisateur
@@ -42,13 +58,12 @@ class PublicationListSerializer(serializers.ModelSerializer):
 
     def get_photographe_photo(self, obj):
         request = self.context.get("request")
-        photo = obj.photographe.utilisateur.photo_profil
+        photo   = obj.photographe.utilisateur.photo_profil
         if photo and request:
             return request.build_absolute_uri(photo.url)
         return None
 
     def get_a_like(self, obj):
-        """Retourne True si l'utilisateur connecté a liké cette publication."""
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             return obj.reactions.filter(utilisateur=request.user).exists()
@@ -56,7 +71,6 @@ class PublicationListSerializer(serializers.ModelSerializer):
 
 
 class PublicationDetailSerializer(PublicationListSerializer):
-    """Serializer complet pour la vue détail d'une publication."""
     photographe_id = serializers.UUIDField(source="photographe.id", read_only=True)
 
     class Meta(PublicationListSerializer.Meta):
@@ -68,11 +82,6 @@ class PublicationDetailSerializer(PublicationListSerializer):
 # ─────────────────────────────────────────────
 
 class PublicationCreateSerializer(serializers.ModelSerializer):
-    """
-    Création d'une publication.
-    - categories : liste d'UUIDs de catégories existantes
-    - tags       : liste de noms de tags (créés automatiquement si inexistants)
-    """
     categories = serializers.ListField(
         child=serializers.UUIDField(),
         required=False,
@@ -85,21 +94,15 @@ class PublicationCreateSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model = Publication
+        model  = Publication
         fields = [
-            "titre", "description", "image_url", "type",
+            "titre", "description", "image_originale", "type",
             "prix", "categories", "tags", "is_active",
         ]
 
     def to_internal_value(self, data):
-        """
-        Normalise les données multipart/form-data.
-        Quand Postman ou un formulaire HTML envoie du form-data, Django reçoit
-        parfois les valeurs scalaires sous forme de liste à un élément ['valeur'].
-        Cette méthode extrait la première valeur pour les champs non-liste.
-        """
         champs_scalaires = ["titre", "description", "type", "prix", "is_active"]
-        data_normalisee = data.copy()
+        data_normalisee  = data.copy()
         for champ in champs_scalaires:
             if champ in data_normalisee:
                 valeur = data_normalisee[champ]
@@ -108,12 +111,10 @@ class PublicationCreateSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data_normalisee)
 
     def validate(self, attrs):
-        # Le prix est obligatoire pour une publication de type vente
         if attrs.get("type") == PublicationType.VENTE and not attrs.get("prix"):
             raise serializers.ValidationError(
                 {"prix": "Le prix est obligatoire pour une publication de type vente."}
             )
-        # Le prix ne doit pas être négatif
         if attrs.get("prix") is not None and attrs["prix"] < 0:
             raise serializers.ValidationError(
                 {"prix": "Le prix ne peut pas être négatif."}
@@ -129,20 +130,17 @@ class PublicationCreateSerializer(serializers.ModelSerializer):
         return categories
 
     def validate_tags(self, valeurs):
-        """Nettoie et déduplique les tags."""
         return list({tag.strip().lower() for tag in valeurs if tag.strip()})
 
     def create(self, validated_data):
         categories = validated_data.pop("categories", [])
-        noms_tags = validated_data.pop("tags", [])
+        noms_tags  = validated_data.pop("tags", [])
 
         publication = Publication.objects.create(**validated_data)
 
-        # Catégories
         if categories:
             publication.categories.set(categories)
 
-        # Tags — get_or_create pour les tags libres
         tags = []
         for nom in noms_tags:
             tag, _ = Tag.objects.get_or_create(nom=nom)
@@ -153,13 +151,12 @@ class PublicationCreateSerializer(serializers.ModelSerializer):
         return publication
 
     def update(self, instance, validated_data):
-        categories = validated_data.pop("categories", None)
-        noms_tags = validated_data.pop("tags", None)
+        categories  = validated_data.pop("categories", None)
+        noms_tags   = validated_data.pop("tags", None)
 
-        # Supprimer l'ancienne image si une nouvelle est fournie
-        nouvelle_image = validated_data.get("image_url")
-        if nouvelle_image and instance.image_url:
-            instance.image_url.delete(save=False)
+        nouvelle_image = validated_data.get("image_originale")
+        if nouvelle_image and instance.image_originale:
+            instance.image_originale.delete(save=False)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -180,6 +177,6 @@ class PublicationCreateSerializer(serializers.ModelSerializer):
 
 class ReactionSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Reaction
+        model  = Reaction
         fields = ["id", "utilisateur", "publication", "created_at"]
         read_only_fields = ["id", "utilisateur", "created_at"]
