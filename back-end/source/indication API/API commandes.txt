@@ -1,0 +1,308 @@
+# 📡 API Commandes — Documentation Frontend
+
+> **Base URL :** `http://localhost:8000/api/commandes/`  
+> **Auth :** `Authorization: Bearer <access_token>` requis sur tous les endpoints  
+> **Accès :** réservé aux **clients** uniquement
+
+---
+
+## Sommaire
+
+- [Voir le panier](#1-voir-le-panier)
+- [Ajouter une photo au panier](#2-ajouter-une-photo-au-panier)
+- [Retirer une photo du panier](#3-retirer-une-photo-du-panier)
+- [Vider le panier](#4-vider-le-panier)
+- [Valider le panier (passer commande)](#5-valider-le-panier-passer-commande)
+- [Payer une commande](#6-payer-une-commande)
+- [Annuler une commande](#7-annuler-une-commande)
+- [Historique des commandes](#8-historique-des-commandes)
+- [Flux complet d'achat](#flux-complet-dachat)
+- [Structure des objets](#structure-des-objets)
+
+---
+
+## 1. Voir le panier
+
+**`GET /api/commandes/panier/`** — 🔒 Client requis
+
+### Réponse — panier avec articles `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "...",
+    "status": "en_attente",
+    "status_label": "En attente",
+    "prix_a_payer": "240.00",
+    "nombre_articles": 2,
+    "articles": [
+      {
+        "id": "...",
+        "publication": "uuid-publication",
+        "publication_titre": "Coucher de soleil",
+        "publication_image": "http://localhost:8000/media/publications/filigranes/wm_photo.jpg",
+        "quantite": 1,
+        "prix_unitaire": "120.00"
+      }
+    ],
+    "created_at": "2024-11-15T10:30:00Z",
+    "updated_at": "2024-11-15T10:35:00Z"
+  }
+}
+```
+
+### Réponse — panier vide `200 OK`
+
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "Votre panier est vide."
+}
+```
+
+---
+
+## 2. Ajouter une photo au panier
+
+**`POST /api/commandes/panier/ajouter/`** — 🔒 Client requis
+
+> Seules les publications de type `"vente"` et non encore vendues peuvent être ajoutées.
+
+### Corps de la requête
+
+```json
+{
+  "publication_id": "uuid-de-la-publication"
+}
+```
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Photo ajoutée au panier.",
+  "data": { /* Commande avec articles mis à jour */ }
+}
+```
+
+### Réponses erreur `400`
+
+```json
+{ "success": false, "message": "Seules les publications de type 'vente' peuvent être achetées." }
+{ "success": false, "message": "Cette photo a déjà été vendue." }
+{ "success": false, "message": "Cette photo est déjà dans votre panier." }
+{ "success": false, "message": "Vous ne pouvez pas acheter votre propre photo." }
+```
+
+---
+
+## 3. Retirer une photo du panier
+
+**`POST /api/commandes/panier/retirer/`** — 🔒 Client requis
+
+### Corps de la requête
+
+```json
+{
+  "publication_id": "uuid-de-la-publication"
+}
+```
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Photo retirée du panier.",
+  "data": { /* Commande avec articles mis à jour */ }
+}
+```
+
+---
+
+## 4. Vider le panier
+
+**`DELETE /api/commandes/panier/vider/`** — 🔒 Client requis
+
+Aucun corps requis.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Panier vidé.",
+  "data": { /* Commande vide */ }
+}
+```
+
+---
+
+## 5. Valider le panier (passer commande)
+
+**`POST /api/commandes/panier/`** — 🔒 Client requis
+
+Vérifie que toutes les photos sont encore disponibles et recalcule le total.  
+Aucun corps requis.
+
+### Réponse `201 Created`
+
+```json
+{
+  "success": true,
+  "message": "Commande passée avec succès. Procédez au paiement.",
+  "data": {
+    "id": "uuid-commande",
+    "status": "en_attente",
+    "prix_a_payer": "240.00",
+    ...
+  }
+}
+```
+
+### Réponses erreur `400`
+
+```json
+{ "success": false, "message": "Votre panier est vide." }
+{ "success": false, "message": "La photo 'Coucher de soleil' a déjà été vendue. Veuillez la retirer de votre panier." }
+```
+
+> 💡 Après cet appel, récupère l'`id` de la commande pour appeler l'endpoint de paiement.
+
+---
+
+## 6. Payer une commande
+
+**`POST /api/commandes/<uuid>/payer/`** — 🔒 Client requis
+
+> Simule le paiement. En production, cet endpoint serait déclenché après confirmation du prestataire de paiement (Stripe, etc.).  
+> Une fois payée, toutes les photos de la commande perdent leur filigrane (`est_vendue = true`).
+
+### Corps de la requête
+
+```json
+{
+  "confirmation": true
+}
+```
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Paiement effectué. Les photos sont maintenant disponibles sans filigrane.",
+  "data": {
+    "id": "...",
+    "status": "paye",
+    "status_label": "Payé",
+    "prix_a_payer": "240.00",
+    "articles": [ /* articles avec image_affichee = originale sans filigrane */ ],
+    ...
+  }
+}
+```
+
+### Réponse erreur `400`
+
+```json
+{ "success": false, "message": "Seule une commande en attente peut être payée." }
+```
+
+---
+
+## 7. Annuler une commande
+
+**`POST /api/commandes/<uuid>/annuler/`** — 🔒 Client requis  
+Uniquement possible si la commande est encore `en_attente`.
+
+### Corps de la requête
+
+```json
+{
+  "confirmation": true
+}
+```
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Commande annulée.",
+  "data": { "status": "annule", ... }
+}
+```
+
+---
+
+## 8. Historique des commandes
+
+**`GET /api/commandes/historique/`** — 🔒 Client requis  
+Retourne les commandes payées et annulées (pas le panier en cours).
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "pagination": { "total": 5, "pages": 1, ... },
+  "data": [
+    {
+      "id": "...",
+      "status": "paye",
+      "status_label": "Payé",
+      "prix_a_payer": "240.00",
+      "nombre_articles": 2,
+      "articles": [...],
+      "created_at": "2024-11-15T10:30:00Z",
+      "updated_at": "2024-11-15T10:40:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## Flux complet d'achat
+
+```
+1. GET  /api/publications/?type=vente     → parcourir les photos à vendre
+2. POST /api/commandes/panier/ajouter/    → ajouter au panier
+3. GET  /api/commandes/panier/            → voir le panier + total
+4. POST /api/commandes/panier/            → valider → récupérer l'id commande
+5. POST /api/commandes/<id>/payer/        → payer → photos sans filigrane
+```
+
+---
+
+## Structure des objets
+
+```typescript
+interface Commande {
+  id: string;
+  status: "en_attente" | "paye" | "annule";
+  status_label: string;       // "En attente" | "Payé" | "Annulé"
+  prix_a_payer: string;       // Décimal ex: "240.00"
+  nombre_articles: number;
+  articles: Article[];
+  created_at: string;
+  updated_at: string;
+}
+
+interface Article {
+  id: string;
+  publication: string;            // UUID de la publication
+  publication_titre: string;
+  publication_image: string;      // URL de l'image (filigrane ou originale)
+  quantite: number;               // toujours 1 pour les photos
+  prix_unitaire: string;          // prix au moment de l'ajout au panier
+}
+```
+
+---
+
+*Documentation — module commandes. Voir aussi `README_API_PUBLICATIONS.md` pour les publications de type vente.*

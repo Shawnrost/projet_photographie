@@ -373,3 +373,44 @@ interface ProfilPhotographe {
 ---
 
 *Documentation générée pour le projet — module authentification. Pour toute question, contacter le développeur backend.*
+
+---
+
+## Mise à jour — Essai gratuit photographe
+
+À l'inscription d'un compte photographe, le champ `profil_photographe` retourné contient maintenant `essai_utilise` :
+
+```json
+{
+  "success": true,
+  "message": "Compte créé avec succès.",
+  "data": {
+    "id": "...",
+    "role": "photographe",
+    "profil_photographe": {
+      "id": "...",
+      "bio": null,
+      "adresse": null,
+      "photo_couverture": null,
+      "essai_utilise": true,
+      "created_at": "2024-11-15T10:30:00Z"
+    }
+  }
+}
+```
+
+> `essai_utilise: true` dès l'inscription car l'essai Premium 1 mois est activé automatiquement.  
+> L'abonnement est consultable via `GET /api/abonnements/statut/`.
+
+### TypeScript — mise à jour ProfilPhotographe
+
+```typescript
+interface ProfilPhotographe {
+  id: string;
+  bio: string | null;
+  adresse: string | null;
+  photo_couverture: string | null;
+  essai_utilise: boolean;    // ← nouveau champ
+  created_at: string;
+}
+```
