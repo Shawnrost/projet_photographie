@@ -5,7 +5,7 @@ from .models import Utilisateur, ProfilPhotographe, UserRole
 
 
 # ─────────────────────────────────────────────
-# Serializers déjà existants (auth)
+# Serializers auth
 # ─────────────────────────────────────────────
 
 class InscriptionSerializer(serializers.ModelSerializer):
@@ -42,7 +42,13 @@ class InscriptionSerializer(serializers.ModelSerializer):
         utilisateur.set_password(password)
         utilisateur.save()
         if utilisateur.role == UserRole.PHOTOGRAPHE:
-            ProfilPhotographe.objects.create(utilisateur=utilisateur)
+            profil = ProfilPhotographe.objects.create(utilisateur=utilisateur)
+            # Essai gratuit Premium 1 mois automatique à l'inscription
+            try:
+                from apps.abonnements.services import AbonnementService
+                AbonnementService.creer_essai_gratuit(profil)
+            except Exception as e:
+                print(f"[ESSAI] Erreur création essai gratuit : {e}")
         return utilisateur
 
 
@@ -58,8 +64,8 @@ class ConnexionSerializer(serializers.Serializer):
 class ProfilPhotographeSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProfilPhotographe
-        fields = ["id", "bio", "adresse", "photo_couverture", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "bio", "adresse", "photo_couverture", "essai_utilise", "created_at"]
+        read_only_fields = ["id", "essai_utilise", "created_at"]
 
 
 class UtilisateurSerializer(serializers.ModelSerializer):
@@ -82,28 +88,18 @@ class UtilisateurSerializer(serializers.ModelSerializer):
 
 
 class ModifierProfilSerializer(serializers.ModelSerializer):
-    """
-    Mise à jour des infos de base de l'utilisateur connecté.
-    Accepte multipart/form-data pour la photo_profil.
-    """
     class Meta:
         model = Utilisateur
         fields = ["nom", "prenom", "photo_profil"]
 
     def update(self, instance, validated_data):
-        # Si une nouvelle photo est envoyée, supprimer l'ancienne du disque
         nouvelle_photo = validated_data.get("photo_profil")
         if nouvelle_photo and instance.photo_profil:
             instance.photo_profil.delete(save=False)
-
         return super().update(instance, validated_data)
 
 
 class ModifierProfilPhotographeSerializer(serializers.ModelSerializer):
-    """
-    Mise à jour du profil étendu photographe.
-    Accepte multipart/form-data pour la photo_couverture.
-    """
     class Meta:
         model = ProfilPhotographe
         fields = ["bio", "adresse", "photo_couverture"]
@@ -112,15 +108,13 @@ class ModifierProfilPhotographeSerializer(serializers.ModelSerializer):
         nouvelle_photo = validated_data.get("photo_couverture")
         if nouvelle_photo and instance.photo_couverture:
             instance.photo_couverture.delete(save=False)
-
         return super().update(instance, validated_data)
 
 
 class ChangerMotDePasseSerializer(serializers.Serializer):
-    """Changement de mot de passe avec vérification de l'ancien."""
-    ancien_mot_de_passe = serializers.CharField(required=True, write_only=True)
+    ancien_mot_de_passe  = serializers.CharField(required=True, write_only=True)
     nouveau_mot_de_passe = serializers.CharField(required=True, write_only=True)
-    confirmation = serializers.CharField(required=True, write_only=True)
+    confirmation         = serializers.CharField(required=True, write_only=True)
 
     def validate_ancien_mot_de_passe(self, value):
         utilisateur = self.context["request"].user

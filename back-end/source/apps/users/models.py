@@ -80,6 +80,11 @@ class ProfilPhotographe(models.Model):
         null=True
     )
 
+    essai_utilise = models.BooleanField(        
+        default=False,
+        help_text="True si le photographe a déjà utilisé son essai gratuit."
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
