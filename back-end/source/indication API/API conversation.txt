@@ -1,0 +1,371 @@
+# 📡 API Conversations — Documentation Frontend
+
+> **Base URL HTTP :** `http://localhost:8000/api/conversations/`  
+> **WebSocket :** `ws://localhost:8000/ws/conversations/<uuid>/?token=<access_token>`  
+> **Auth :** `Authorization: Bearer <access_token>` sur tous les endpoints HTTP  
+> **Accès :** tout utilisateur authentifié
+
+---
+
+## Sommaire
+
+- [Lister les conversations](#1-lister-les-conversations)
+- [Initier une conversation](#2-initier-une-conversation)
+- [Historique des messages](#3-historique-des-messages)
+- [Envoyer un message (HTTP)](#4-envoyer-un-message-http)
+- [Messages non lus — badge](#5-messages-non-lus--badge)
+- [WebSocket — temps réel](#6-websocket--temps-réel)
+- [Flux complet](#flux-complet)
+- [Structure des objets](#structure-des-objets)
+
+---
+
+## 1. Lister les conversations
+
+**`GET /api/conversations/`** — 🔒 Authentifié requis
+
+Retourne toutes les conversations de l'utilisateur connecté (client ou photographe), triées par dernier message.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "pagination": { "total": 5, ... },
+  "data": [
+    {
+      "id": "uuid-conversation",
+      "client_nom": "Jean Dupont",
+      "client_photo": "http://localhost:8000/media/profils/jean.jpg",
+      "photographe_nom": "Marie Martin",
+      "photographe_photo": "http://localhost:8000/media/profils/marie.jpg",
+      "non_lus_count": 3,
+      "dernier_message": {
+        "contenu": "Bonjour, je suis intéressé par vos services.",
+        "sent_at": "2024-11-15T10:35:00Z",
+        "is_read": false,
+        "a_fichier": false
+      },
+      "created_at": "2024-11-15T10:30:00Z",
+      "last_message_at": "2024-11-15T10:35:00Z"
+    }
+  ]
+}
+```
+
+> 💡 `non_lus_count` permet d'afficher un badge sur chaque conversation dans la liste.
+
+---
+
+## 2. Initier une conversation
+
+**`POST /api/conversations/`** — 🔒 Authentifié requis
+
+Crée une conversation avec un photographe. Si elle existe déjà, retourne l'existante.
+
+### Corps de la requête
+
+```json
+{
+  "photographe_id": "uuid-du-profil-photographe",
+  "message_initial": "Bonjour, je suis intéressé par vos services !"
+}
+```
+
+| Champ | Requis | Description |
+|---|---|---|
+| `photographe_id` | ✅ | UUID du `ProfilPhotographe` (pas de l'utilisateur) |
+| `message_initial` | ❌ | Premier message envoyé automatiquement |
+
+### Réponse — nouvelle conversation `201 Created`
+
+```json
+{
+  "success": true,
+  "message": "Conversation créée.",
+  "data": { /* Conversation */ }
+}
+```
+
+### Réponse — conversation existante `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Conversation existante.",
+  "data": { /* Conversation */ }
+}
+```
+
+---
+
+## 3. Historique des messages
+
+**`GET /api/conversations/<uuid>/`** — 🔒 Authentifié requis
+
+> Marque automatiquement les messages reçus comme **lus** à l'ouverture.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "pagination": { "total": 42, "page_size": 30, ... },
+  "data": [
+    {
+      "id": "uuid-message",
+      "expediteur": {
+        "id": "uuid-user",
+        "nom": "Dupont",
+        "prenom": "Jean",
+        "photo_profil": "http://localhost:8000/media/profils/jean.jpg"
+      },
+      "contenu": "Bonjour !",
+      "fichier_url": null,
+      "nom_fichier_original": null,
+      "type_fichier": null,
+      "is_read": true,
+      "sent_at": "2024-11-15T10:30:00Z"
+    },
+    {
+      "id": "...",
+      "expediteur": { ... },
+      "contenu": null,
+      "fichier_url": "http://localhost:8000/media/conversations/fichiers/photo.jpg",
+      "nom_fichier_original": "photo.jpg",
+      "type_fichier": "image/jpeg",
+      "is_read": false,
+      "sent_at": "2024-11-15T10:32:00Z"
+    }
+  ]
+}
+```
+
+> 💡 Les messages sont paginés par 30. Charge la page précédente pour voir les plus anciens ("infinite scroll vers le haut").
+
+---
+
+## 4. Envoyer un message (HTTP)
+
+**`POST /api/conversations/<uuid>/messages/`** — 🔒 Authentifié requis  
+**Content-Type :** `multipart/form-data` si fichier joint, sinon `application/json`
+
+> ⚠️ Utilise cet endpoint uniquement pour les **fichiers joints**.  
+> Pour les messages texte, utilise le **WebSocket** (plus rapide, temps réel).
+
+| Champ | Type | Description |
+|---|---|---|
+| `contenu` | string | Texte du message (optionnel si fichier) |
+| `fichier` | file | Image ou fichier joint (optionnel si contenu) |
+
+### Réponse `201 Created`
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "...",
+    "expediteur": { ... },
+    "contenu": "Voici la photo",
+    "fichier_url": "http://localhost:8000/media/conversations/fichiers/doc.pdf",
+    "nom_fichier_original": "doc.pdf",
+    "type_fichier": "application/pdf",
+    "is_read": false,
+    "sent_at": "2024-11-15T10:35:00Z"
+  }
+}
+```
+
+---
+
+## 5. Messages non lus — badge
+
+**`GET /api/conversations/non-lus/`** — 🔒 Authentifié requis
+
+Retourne le nombre total de messages non lus dans toutes les conversations.
+
+```json
+{
+  "success": true,
+  "data": { "non_lus": 7 }
+}
+```
+
+> 💡 Appelle cet endpoint au chargement de l'app pour afficher le badge sur l'icône messagerie dans la navbar. Rafraîchis-le toutes les 30 secondes si tu n'utilises pas le WebSocket pour le compteur.
+
+---
+
+## 6. WebSocket — temps réel
+
+### Connexion
+
+```javascript
+const token  = localStorage.getItem("access_token");
+const convId = "uuid-de-la-conversation";
+const ws     = new WebSocket(
+  `ws://localhost:8000/ws/conversations/${convId}/?token=${token}`
+);
+```
+
+> Le token JWT est passé en **query string** — c'est la seule façon d'authentifier un WebSocket (les headers ne sont pas supportés par le browser WebSocket API).
+
+### Événements
+
+```javascript
+ws.onopen = () => {
+  console.log("Connecté à la conversation");
+};
+
+ws.onclose = (event) => {
+  if (event.code === 4001) console.error("Non authentifié");
+  if (event.code === 4003) console.error("Accès refusé à cette conversation");
+};
+
+ws.onerror = (error) => {
+  console.error("Erreur WebSocket", error);
+};
+```
+
+### Envoyer un message texte
+
+```javascript
+ws.send(JSON.stringify({
+  type:    "message",
+  contenu: "Bonjour !"
+}));
+```
+
+### Recevoir un message
+
+```javascript
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  if (data.type === "message") {
+    const message = data.message;
+    // {
+    //   id: "uuid",
+    //   contenu: "Bonjour !",
+    //   expediteur: { id, nom, prenom },
+    //   is_read: false,
+    //   sent_at: "2024-11-15T10:35:00.000Z",
+    //   fichier_url: null
+    // }
+    ajouterMessageAuChat(message);
+  }
+
+  if (data.type === "erreur") {
+    console.error(data.message);
+  }
+};
+```
+
+### Fermer la connexion
+
+```javascript
+ws.close();  // À appeler quand l'utilisateur quitte la page de conversation
+```
+
+### Exemple complet React
+
+```javascript
+import { useEffect, useRef } from "react";
+
+function useConversationSocket(convId, onMessage) {
+  const ws = useRef(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    ws.current   = new WebSocket(
+      `ws://localhost:8000/ws/conversations/${convId}/?token=${token}`
+    );
+
+    ws.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "message") onMessage(data.message);
+    };
+
+    return () => ws.current?.close();
+  }, [convId]);
+
+  const envoyer = (contenu) => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ type: "message", contenu }));
+    }
+  };
+
+  return { envoyer };
+}
+```
+
+---
+
+## Flux complet
+
+```
+// Côté client
+1. GET  /api/publications/?type=vente          → trouver un photographe
+2. POST /api/conversations/                    → initier la conversation
+3. Récupérer l'id de la conversation
+4. GET  /api/conversations/<id>/               → charger l'historique
+5. WS   ws://…/ws/conversations/<id>/?token=… → connexion temps réel
+6. Envoyer/recevoir des messages via WebSocket
+7. POST /api/conversations/<id>/messages/      → pour les fichiers joints uniquement
+```
+
+---
+
+## Structure des objets
+
+```typescript
+interface Conversation {
+  id: string;
+  client_nom: string;
+  client_photo: string | null;
+  photographe_nom: string;
+  photographe_photo: string | null;
+  non_lus_count: number;
+  dernier_message: {
+    contenu: string | null;
+    sent_at: string;
+    is_read: boolean;
+    a_fichier: boolean;
+  } | null;
+  created_at: string;
+  last_message_at: string;
+}
+
+interface Message {
+  id: string;
+  expediteur: {
+    id: string;
+    nom: string;
+    prenom: string;
+    photo_profil: string | null;
+  };
+  contenu: string | null;
+  fichier_url: string | null;
+  nom_fichier_original: string | null;
+  type_fichier: string | null;   // MIME type ex: "image/jpeg", "application/pdf"
+  is_read: boolean;
+  sent_at: string;
+}
+
+// Message reçu via WebSocket
+interface WsMessage {
+  type: "message" | "erreur";
+  message?: {
+    id: string;
+    contenu: string | null;
+    expediteur: { id: string; nom: string; prenom: string };
+    is_read: boolean;
+    sent_at: string;
+    fichier_url: string | null;
+  };
+  message?: string;  // si type === "erreur"
+}
+```
+
+---
+
+*Documentation — module conversations. Voir aussi `README_API_AUTH.md` pour les tokens JWT.*

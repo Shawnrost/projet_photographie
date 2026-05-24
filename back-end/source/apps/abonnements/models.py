@@ -2,7 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 import uuid
-from apps.users.models import ProfilPhotographe
+from apps.users.models import ProfilPhotographe, Utilisateur
 
 
 class SubscriptionPlan(models.TextChoices):
@@ -109,3 +109,30 @@ class Abonnement(models.Model):
             self.save(update_fields=["status"])
             return True
         return False
+    
+class Suivi(models.Model):
+    """
+    Système de suivi entre utilisateurs.
+    N'importe qui peut suivre n'importe qui.
+    Un utilisateur ne peut pas se suivre lui-même.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    suiveur = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.CASCADE,
+        related_name="suivis",           # les gens que je suis
+    )
+    suivi = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.CASCADE,
+        related_name="abonnes",          # les gens qui me suivent
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+ 
+    class Meta:
+        unique_together = ("suiveur", "suivi")
+        ordering        = ["-created_at"]
+ 
+    def __str__(self):
+        return f"{self.suiveur} suit {self.suivi}"
+ 

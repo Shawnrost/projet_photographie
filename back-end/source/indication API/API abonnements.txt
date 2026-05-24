@@ -248,3 +248,126 @@ interface Tarif {
 ---
 
 *Documentation — module abonnements. Voir aussi `README_API_AUTH.md`, `README_API_PROFIL.md`, `README_API_PUBLICATIONS.md`.*
+
+---
+
+## Essai gratuit
+
+> À l'inscription d'un compte **photographe**, un abonnement **Premium gratuit d'1 mois** est créé automatiquement. Aucune action requise côté frontend — il est actif dès la création du compte.
+
+Caractéristiques de l'essai :
+- Plan : `premium`
+- Durée : `1_mois`
+- Prix : `0.00`
+- Utilisable **une seule fois** par photographe
+
+Le champ `essai_utilise` dans `profil_photographe` indique si l'essai a déjà été utilisé :
+```json
+{
+  "profil_photographe": {
+    "essai_utilise": true
+  }
+}
+```
+
+> 💡 Utilise ce champ pour afficher ou masquer un badge "Essai gratuit disponible" sur la page de tarification.
+
+---
+
+## Suivi (Follow / Unfollow)
+
+### Follow / Unfollow — toggle
+
+**`POST /api/abonnements/suivre/<uuid>/`** — 🔒 Authentifié requis
+
+> Toggle : si déjà suivi → unfollow, sinon → follow.  
+> `<uuid>` = ID de l'utilisateur à suivre/ne plus suivre.
+
+Aucun corps requis.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "suivi": true,
+    "nombre_abonnes": 42
+  }
+}
+```
+
+| Champ | Description |
+|---|---|
+| `suivi` | `true` = tu suis maintenant, `false` = tu ne suis plus |
+| `nombre_abonnes` | Nouveau nombre d'abonnés de l'utilisateur ciblé |
+
+### Réponse erreur `400`
+
+```json
+{ "success": false, "message": "Vous ne pouvez pas vous suivre vous-même." }
+```
+
+---
+
+### Liste des abonnés d'un utilisateur
+
+**`GET /api/abonnements/utilisateurs/<uuid>/abonnes/`** — Public
+
+Retourne les utilisateurs qui suivent cet utilisateur.
+
+```json
+{
+  "success": true,
+  "pagination": { "total": 42, ... },
+  "data": [
+    {
+      "id": "...",
+      "nom": "Dupont",
+      "prenom": "Jean",
+      "role": "client",
+      "photo_profil": "http://localhost:8000/media/profils/jean.jpg",
+      ...
+    }
+  ]
+}
+```
+
+---
+
+### Liste des utilisateurs suivis
+
+**`GET /api/abonnements/utilisateurs/<uuid>/suivis/`** — Public
+
+Retourne les utilisateurs que cet utilisateur suit.
+
+Même format de réponse que la liste des abonnés.
+
+---
+
+### Fil d'actualité
+
+**`GET /api/abonnements/fil-actualite/`** — 🔒 Authentifié requis
+
+Retourne les publications des photographes suivis par l'utilisateur connecté, triées par date décroissante.
+
+```json
+{
+  "success": true,
+  "pagination": { "total": 24, "pages": 2, ... },
+  "data": [ /* liste de publications — même format que GET /api/publications/ */ ]
+}
+```
+
+> 💡 C'est l'endpoint principal de la page d'accueil après connexion — le fil personnalisé de l'utilisateur.
+
+---
+
+### TypeScript — types suivi
+
+```typescript
+interface StatutSuivi {
+  suivi: boolean;         // true = je suis, false = je ne suis plus
+  nombre_abonnes: number;
+}
+```

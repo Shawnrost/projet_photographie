@@ -2,15 +2,19 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-
+from django.shortcuts import get_object_or_404
 from .serializers import (
     AbonnementSerializer,
     SouscrireAbonnementSerializer,
     AnnulerAbonnementSerializer,
     PlanTarifSerializer,
 )
-from .services import AbonnementService
+from .services import AbonnementService, SuiviService
 from apps.users.permissions import EstPhotographe
+from apps.users.models import Utilisateur
+from apps.users.serializers import UtilisateurSerializer
+from apps.publications.serializers import PublicationListSerializer
+from apps.core.pagination import PaginationStandard
 
 
 class TarifsView(APIView):
@@ -156,3 +160,71 @@ class HistoriqueAbonnementView(APIView):
             "success": True,
             "data": AbonnementSerializer(abonnements, many=True).data,
         })
+
+
+class SuiviToggleView(APIView):
+    """
+    POST /api/abonnements/suivre/<uuid>/
+    Follow / Unfollow toggle sur un utilisateur.
+    """
+    permission_classes = [IsAuthenticated]
+ 
+    def post(self, request, pk):
+        try:
+            result = SuiviService.toggler_suivi(request.user, pk)
+        except ValueError as e:
+            return Response(
+                {"success": False, "message": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response({"success": True, "data": result})
+ 
+ 
+class AbonnesListView(APIView):
+    """
+    GET /api/abonnements/utilisateurs/<uuid>/abonnes/
+    Liste des utilisateurs qui suivent cet utilisateur.
+    """
+    permission_classes = [AllowAny]
+ 
+    def get(self, request, pk):
+        utilisateur = get_object_or_404(Utilisateur, id=pk)
+        abonnes     = SuiviService.get_abonnes(utilisateur)
+        paginator   = PaginationStandard()
+        page        = paginator.paginate_queryset(abonnes, request)
+        serializer  = UtilisateurSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+ 
+ 
+class SuivisListView(APIView):
+    """
+    GET /api/abonnements/utilisateurs/<uuid>/suivis/
+    Liste des utilisateurs que cet utilisateur suit.
+    """
+    permission_classes = [AllowAny]
+ 
+    def get(self, request, pk):
+        utilisateur = get_object_or_404(Utilisateur, id=pk)
+        suivis      = SuiviService.get_suivis(utilisateur)
+        paginator   = PaginationStandard()
+        page        = paginator.paginate_queryset(suivis, request)
+        serializer  = UtilisateurSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+ 
+ 
+class FilActualiteView(APIView):
+    """
+    GET /api/abonnements/fil-actualite/
+    Publications des photographes suivis par l'utilisateur connecté.
+    """
+    permission_classes = [IsAuthenticated]
+ 
+    def get(self, request):
+        publications = SuiviService.fil_actualite(request.user)
+        paginator    = PaginationStandard()
+        page         = paginator.paginate_queryset(publications, request)
+        serializer   = PublicationListSerializer(
+            page, many=True, context={"request": request}
+        )
+        return paginator.get_paginated_response(serializer.data)
+ 
