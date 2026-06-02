@@ -23,17 +23,3 @@ dist-ssr
 *.sln
 *.sw?
 
-
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.pyc.*
-*.sqlite3
-
-# Django / backend
-*.db
-media/
-staticfiles/
