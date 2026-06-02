@@ -57,7 +57,7 @@ const EnTete = () => {
               whileTap={{ scale: 0.95 }}
               className="px-8 py-2.5 rounded-full border border-gold/30 text-gold-light font-sans text-[10px] tracking-[0.3em] uppercase bg-gold/5 backdrop-blur-sm hover:bg-gold hover:text-charcoal transition-all duration-500"
             >
-              Mon Espace
+              Se Connecter
             </motion.button>
           </div>
 

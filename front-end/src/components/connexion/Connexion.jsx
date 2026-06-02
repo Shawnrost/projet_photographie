@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const BG_IMAGES = [
   "https://images.unsplash.com/photo-1554080353-a576cf803bda?q=80&w=2000",
@@ -13,14 +14,105 @@ const Connexion = () => {
   const [bgIndex, setBgIndex] = useState(0);
   const navigate = useNavigate();
 
+  // NOUVEAUX ÉTATS POUR L'API ET L'ANIMATION
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+
   useEffect(() => {
     const timer = setInterval(() => setBgIndex((prev) => (prev + 1) % BG_IMAGES.length), 8000);
     return () => clearInterval(timer);
   }, []);
 
+  // GESTION DU SUBMIT AVEC L'API DU DOSSIER BACKEND
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setApiError(null);
+
+    try {
+      const response = await axios.post('http://localhost:8000/api/auth/connexion/', {
+        email: email,
+        password: password
+      });
+
+      if (response.data.success) {
+        const { access, refresh } = response.data.data;
+        
+        // Stockage des tokens pour rester identifié
+        localStorage.setItem('access_token', access);
+        localStorage.setItem('refresh_token', refresh);
+
+        // Déclenchement de la transition visuelle de succès
+        setShowSuccess(true);
+
+        setTimeout(() => {
+          navigate('/accueil'); // Redirection vers ton Accueil.jsx
+        }, 2200);
+      }
+    } catch (error) {
+      if (error.response && error.response.data) {
+        // Capture des erreurs de validation ou du message d'identifiants incorrects
+        setApiError(error.response.data.message || "Identifiants invalides ou introuvables.");
+      } else {
+        setApiError("Liaison avec le serveur Fine Art interrompue.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section className="relative w-screen h-screen bg-charcoal overflow-hidden flex items-center justify-center font-sans">
       
+      {/* --- ÉCRAN DE SUCCÈS OVERLAY ULTRA STYLÉ (Style Galerie) --- */}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-charcoal flex flex-col items-center justify-center overflow-hidden"
+          >
+            <motion.div 
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: [0.8, 1.1, 1], opacity: [0, 0.15, 0.05] }}
+              transition={{ duration: 1.8, ease: "easeOut" }}
+              className="absolute w-[500px] h-[500px] rounded-full border border-gold pointer-events-none"
+            />
+
+            <div className="text-center space-y-4 z-10 px-6">
+              <motion.p 
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 0.4, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.8 }}
+                className="text-ivory text-[9px] tracking-[0.5em] uppercase font-mono italic"
+              >
+                Signature vérifiée
+              </motion.p>
+
+              <motion.h1 
+                initial={{ opacity: 0, filter: "blur(5px)", letterSpacing: "[-0.03em]" }}
+                animate={{ opacity: 1, filter: "blur(0px)", letterSpacing: "[-0.01em]" }}
+                transition={{ delay: 0.4, duration: 1.2, ease: "easeOut" }}
+                className="text-ivory font-display italic text-5xl md:text-6xl font-light leading-none"
+              >
+                Accès autorisé.
+              </motion.h1>
+
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: "60px" }}
+                transition={{ delay: 0.8, duration: 0.8 }}
+                className="h-[1px] bg-gold mx-auto mt-6"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 1. DIAPORAMA D'ARRIÈRE-PLAN */}
       <div className="absolute inset-0 z-0">
         <AnimatePresence mode="wait">
@@ -62,7 +154,7 @@ const Connexion = () => {
       {/* 3. GRILLE PRINCIPALE */}
       <div className="relative z-10 w-full max-w-[1300px] px-12 grid grid-cols-1 lg:grid-cols-12 gap-20 items-center">
         
-        {/* TEXTE ÉDITORIAL (Grisé/Sauge pour la douceur) */}
+        {/* TEXTE ÉDITORIAL */}
         <motion.div 
           initial={{ x: -60, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -91,12 +183,12 @@ const Connexion = () => {
           </div>
         </motion.div>
 
-        {/* 4. FORMULAIRE : VERSION PLUS PETITE (max-w-sm) */}
+        {/* 4. FORMULAIRE */}
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 1.2, delay: 0.2 }}
-          className="lg:col-span-5 w-full max-w-sm mx-auto" // CHANGEMENT : max-w-sm pour un div plus fin
+          className="lg:col-span-5 w-full max-w-sm mx-auto"
         >
           <div className="bg-ivory/[0.03] backdrop-blur-[60px] border border-ivory/10 rounded-[40px] p-10 md:p-12 shadow-2xl relative overflow-hidden">
             
@@ -108,13 +200,17 @@ const Connexion = () => {
               <span className="text-ivory/5 font-display italic text-7xl select-none leading-none">01</span>
             </div>
 
-            <form onSubmit={(e) => e.preventDefault()} className="space-y-10">
+            <form onSubmit={handleLoginSubmit} className="space-y-10">
               <div className="relative group">
                 <input 
                   type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   onFocus={() => setFocusInput('email')}
                   onBlur={() => setFocusInput(null)}
-                  className="w-full bg-transparent border-b border-ivory/10 py-3 text-ivory text-xs focus:outline-none transition-all placeholder:text-ivory/10"
+                  disabled={loading}
+                  required
+                  className="w-full bg-transparent border-b border-ivory/10 py-3 text-ivory text-xs focus:outline-none transition-all placeholder:text-ivory/10 tracking-wide"
                   placeholder="ID EMAIL"
                 />
                 <motion.div className="absolute bottom-0 left-0 h-[1px] bg-gold" animate={{ width: focusInput === 'email' ? '100%' : 0 }} />
@@ -123,22 +219,41 @@ const Connexion = () => {
               <div className="relative group">
                 <input 
                   type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setFocusInput('pw')}
                   onBlur={() => setFocusInput(null)}
-                  className="w-full bg-transparent border-b border-ivory/10 py-3 text-ivory text-xs focus:outline-none transition-all placeholder:text-ivory/10"
+                  disabled={loading}
+                  required
+                  className="w-full bg-transparent border-b border-ivory/10 py-3 text-ivory text-xs focus:outline-none transition-all placeholder:text-ivory/10 tracking-widest"
                   placeholder="CLEF D'ACCÈS"
                 />
                 <motion.div className="absolute bottom-0 left-0 h-[1px] bg-gold" animate={{ width: focusInput === 'pw' ? '100%' : 0 }} />
               </div>
 
+              {/* --- MESSAGE D'ERREUR ANIMÉ DISCRET ET STYLÉ --- */}
+              <AnimatePresence>
+                {apiError && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0, y: -5 }}
+                    animate={{ opacity: 1, height: 'auto', y: 0 }}
+                    exit={{ opacity: 0, height: 0, y: -5 }}
+                    className="text-[9px] text-red-400/90 font-mono uppercase tracking-widest text-center italic"
+                  >
+                    × {apiError}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <motion.button 
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => navigate('/')}
-                className="group relative w-full py-4 rounded-xl bg-ivory text-charcoal shadow-xl transition-all duration-500 overflow-hidden"
+                whileHover={!loading ? { scale: 1.02 } : {}}
+                whileTap={!loading ? { scale: 0.98 } : {}}
+                type="submit"
+                disabled={loading}
+                className="group relative w-full py-4 rounded-xl bg-ivory text-charcoal shadow-xl transition-all duration-500 overflow-hidden disabled:opacity-40"
               >
                 <span className="relative z-10 font-display italic text-lg tracking-wide">
-                  Ouvrir la session
+                  {loading ? "Authentification..." : "Ouvrir la session"}
                 </span>
                 <div className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-700 ease-out" />
               </motion.button>

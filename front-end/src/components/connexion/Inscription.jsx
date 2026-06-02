@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import EtapeRole from './EtapeRole';
 import EtapeIdentite from './EtapeIdentite';
-import EtapePhoto from './EtapePhoto'; // Importation de la nouvelle étape
-import EtapeBio from './EtapeBio';
+import EtapePhoto from './EtapePhoto';
 import EtapeSecurite from './EtapeSecurite';
 
 const BG_IMAGES = [
@@ -15,15 +15,69 @@ const BG_IMAGES = [
 
 const Inscription = () => {
   const [step, setStep] = useState(1);
-  const [role, setRole] = useState("client"); 
   const [tempRole, setTempRole] = useState(null); 
   const [bgIndex, setBgIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false); // État pour l'écran de succès
+  const [apiErrors, setApiErrors] = useState(null);
   const navigate = useNavigate();
+
+  const [formData, setFormData] = useState({
+    role: "client",
+    prenom: "",
+    nom: "",
+    email: "",
+    photo_profil: null,
+    password: "",
+    password_confirm: ""
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setBgIndex((prev) => (prev + 1) % BG_IMAGES.length), 10000);
     return () => clearInterval(timer);
   }, []);
+
+  const updateData = (fields) => {
+    setFormData((prev) => ({ ...prev, ...fields }));
+  };
+
+  const handleFinalSubmit = async (passwordFields) => {
+    setLoading(true);
+    setApiErrors(null);
+
+    const finalPayload = {
+      ...formData,
+      ...passwordFields
+    };
+
+    try {
+      const response = await axios.post('http://localhost:8000/api/auth/inscription/', {
+        email: finalPayload.email,
+        nom: finalPayload.nom,
+        prenom: finalPayload.prenom,
+        role: finalPayload.role,
+        password: finalPayload.password,
+        password_confirm: finalPayload.password_confirm
+      });
+
+      if (response.data.success) {
+        // Déclenche l'animation de succès stylée
+        setShowSuccess(true);
+        // Laisse l'animation s'exécuter pendant 3.5 secondes avant de rediriger
+        setTimeout(() => {
+          navigate('/connexion');
+        }, 3500);
+      }
+    } catch (error) {
+      if (error.response && error.response.data) {
+        setApiErrors(error.response.data.errors || { message: error.response.data.message });
+      } else {
+        setApiErrors({ global: "Une erreur réseau est survenue." });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const leftContent = {
     default: {
@@ -39,24 +93,79 @@ const Inscription = () => {
       widgets: [{ val: "VIP", label: "PRIVILÈGE" }, { val: "24/7", label: "SUPPORT" }]
     },
     photographe: {
-      title: step === 1 ? "Photographe" : step === 4 ? "Le Manifeste" : step === 3 ? "Le Portrait" : "L'Identité",
+      title: step === 1 ? "Photographe" : step === 2 ? "L'Identité" : step === 3 ? "Le Portrait" : "Sécurité",
       subtitle: "EXPOSEZ VOTRE TALENT À UNE AUDIENCE INTERNATIONALE.",
-      details: "Gérez vos séries limitées et profitez de notre infrastructure premium.",
+      details: "Gérer vos séries limitées et profitez de notre infrastructure premium.",
       widgets: [{ val: "90%", label: "COMMISSION" }, { val: "ELITE", label: "VISIBILITÉ" }]
     }
   };
 
-  const activeContent = leftContent[tempRole] || leftContent[role] || leftContent.default;
+  const activeContent = leftContent[tempRole] || leftContent[formData.role] || leftContent.default;
 
   return (
     <section className="relative w-screen h-screen bg-[#1a1a1a] overflow-hidden flex items-center justify-center font-sans">
       
-      {/* --- BOUTON RETOUR CONNEXION --- */}
+      {/* --- ÉCRAN DE SUCCÈS OVERLAY ULTRA STYLÉ --- */}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-[#1a1a1a] flex flex-col items-center justify-center overflow-hidden"
+          >
+            {/* Cercle doré minimaliste qui s'étend */}
+            <motion.div 
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: [0.8, 1.1, 1], opacity: [0, 0.15, 0.05] }}
+              transition={{ duration: 2, ease: "easeOut" }}
+              className="absolute w-[600px] h-[600px] rounded-full border border-[#c5a358] pointer-events-none"
+            />
+
+            {/* Contenu textuel poétique */}
+            <div className="text-center space-y-6 z-10 px-6">
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 0.4, y: 0 }}
+                transition={{ delay: 0.3, duration: 1 }}
+                className="text-[#f5f5f1] text-[10px] tracking-[0.6em] uppercase font-mono italic"
+              >
+                Acquisition de profil réussie
+              </motion.p>
+
+              <motion.h1 
+                initial={{ opacity: 0, letterSpacing: "[-0.05em]", filter: "blur(5px)" }}
+                animate={{ opacity: 1, letterSpacing: "[-0.02em]", filter: "blur(0px)" }}
+                transition={{ delay: 0.6, duration: 1.5, ease: "easeOut" }}
+                className="text-[#f5f5f1] font-serif italic text-6xl md:text-8xl font-light leading-none"
+              >
+                Bienvenue à la Galerie.
+              </motion.h1>
+
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: "80px" }}
+                transition={{ delay: 1.2, duration: 1 }}
+                className="h-[1px] bg-[#c5a358] mx-auto mt-8"
+              />
+
+              <motion.p 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.3 }}
+                transition={{ delay: 1.8, duration: 1 }}
+                className="text-[#f5f5f1] text-[9px] tracking-[0.2em] uppercase font-light pt-4"
+              >
+                Préparation de votre espace personnel...
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.button 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
         onClick={() => navigate('/connexion')}
-        className="absolute top-12 left-12 z-50 group flex items-center gap-4 transition-all"
+        className="absolute top-12 left-12 z-40 group flex items-center gap-4 transition-all"
       >
         <div className="w-8 h-[1px] bg-[#c5a358] group-hover:w-12 transition-all duration-500" />
         <span className="text-[#f5f5f1]/40 group-hover:text-[#c5a358] text-[9px] tracking-[0.4em] uppercase transition-colors italic font-light">
@@ -64,7 +173,6 @@ const Inscription = () => {
         </span>
       </motion.button>
 
-      {/* Background avec Overlay */}
       <div className="absolute inset-0 z-0">
         <AnimatePresence mode="wait">
           <motion.img 
@@ -79,17 +187,25 @@ const Inscription = () => {
 
       <div className="relative z-10 w-full max-w-[1300px] px-12 grid grid-cols-1 lg:grid-cols-12 gap-20 items-center">
         
-        {/* --- CÔTÉ GAUCHE : TEXTE ET WIDGETS --- */}
         <div className="lg:col-span-7 hidden lg:block border-l border-[#c5a358]/20 pl-10">
-          <motion.div key={step + (tempRole || role)} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+          <motion.div key={step + (tempRole || formData.role)} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
             <span className="text-[#c5a358] font-mono text-[9px] tracking-[0.5em] uppercase block mb-4 italic">Étape 0{step}</span>
             <h2 className="text-[#f5f5f1] font-serif italic text-7xl xl:text-8xl leading-none tracking-tighter transition-all">
-              {step === 1 ? activeContent.title : step === 2 ? "L'Identité" : step === 3 ? "Le Portrait" : step === 4 && role === "photographe" ? "Le Manifeste" : "La Sécurité"}
+              {step === 1 ? activeContent.title : step === 2 ? "L'Identité" : step === 3 ? "Le Portrait" : "La Sécurité"}
             </h2>
             <div className="mt-8 space-y-6 max-w-sm">
                 <p className="text-[#f5f5f1]/60 text-[10px] leading-relaxed tracking-[0.2em] uppercase font-light">{activeContent.subtitle}</p>
                 <p className="text-[#f5f5f1]/30 text-xs italic font-light leading-relaxed">"{activeContent.details}"</p>
             </div>
+            
+            {apiErrors && (
+              <div className="mt-4 text-[10px] text-red-400 font-mono tracking-wide uppercase max-w-xs">
+                {Object.entries(apiErrors).map(([key, val]) => (
+                  <p key={key}>{key} : {Array.isArray(val) ? val[0] : val}</p>
+                ))}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-8 mt-12 pt-8 border-t border-[#f5f5f1]/5">
                 {activeContent.widgets.map((w, i) => (
                     <div key={i}>
@@ -101,32 +217,51 @@ const Inscription = () => {
           </motion.div>
         </div>
 
-        {/* --- CÔTÉ DROIT : FORMULAIRE --- */}
         <div className="lg:col-span-5 w-full max-w-sm mx-auto">
           <div className="bg-[#f5f5f1]/[0.03] backdrop-blur-[60px] border border-[#f5f5f1]/10 rounded-[40px] p-10 md:p-12 shadow-2xl relative">
             <div className="mb-10 flex justify-between items-end">
                 <div>
                   <h3 className="text-[#f5f5f1] font-serif italic text-3xl font-light">S'inscrire</h3>
-                  <p className="text-[#c5a358]/50 font-mono text-[7px] tracking-[0.5em] uppercase mt-2">{tempRole || role}</p>
+                  <p className="text-[#c5a358]/50 font-mono text-[7px] tracking-[0.5em] uppercase mt-2">{tempRole || formData.role}</p>
                 </div>
                 <span className="text-[#f5f5f1]/5 font-serif italic text-7xl select-none leading-none">0{step}</span>
             </div>
 
             <AnimatePresence mode="wait">
-              {/* Étape 1 : Choix du Rôle */}
-              {step === 1 && <EtapeRole key="s1" setRole={setRole} setTempRole={setTempRole} onNext={() => setStep(2)} />}
+              {step === 1 && (
+                <EtapeRole 
+                  key="s1" 
+                  setRole={(r) => updateData({ role: r })} 
+                  setTempRole={setTempRole} 
+                  onNext={() => setStep(2)} 
+                />
+              )}
               
-              {/* Étape 2 : Nom, Prénom, Email */}
-              {step === 2 && <EtapeIdentite key="s2" onNext={() => setStep(3)} onBack={() => setStep(1)} />}
+              {step === 2 && (
+                <EtapeIdentite 
+                  key="s2" 
+                  currentData={formData}
+                  onNext={(data) => { updateData(data); setStep(3); }} 
+                  onBack={() => setStep(1)} 
+                />
+              )}
               
-              {/* Étape 3 : Photo de Profil (Nouveau) */}
-              {step === 3 && <EtapePhoto key="s3" onNext={() => setStep(role === "photographe" ? 4 : 5)} onBack={() => setStep(2)} />}
+              {step === 3 && (
+                <EtapePhoto 
+                  key="s3" 
+                  onNext={(file) => { updateData({ photo_profil: file }); setStep(4); }} 
+                  onBack={() => setStep(2)} 
+                />
+              )}
               
-              {/* Étape 4 : Bio (Uniquement Photographe) */}
-              {step === 4 && <EtapeBio key="s4" onNext={() => setStep(5)} onBack={() => setStep(3)} />}
-              
-              {/* Étape 5 : Sécurité (Mot de passe) */}
-              {step === 5 && <EtapeSecurite key="s5" onBack={() => setStep(role === "photographe" ? 4 : 3)} />}
+              {step === 4 && (
+                <EtapeSecurite 
+                  key="s4" 
+                  loading={loading}
+                  onSubmit={handleFinalSubmit} 
+                  onBack={() => setStep(3)} 
+                />
+              )}
             </AnimatePresence>
           </div>
         </div>

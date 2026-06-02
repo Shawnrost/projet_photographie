@@ -93,7 +93,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'fifa_photographie',
         'USER': 'postgres',
-        'PASSWORD': 'ricecooker',
+        'PASSWORD': 'Ny Lahatra0!',
         'HOST': 'localhost',
         'PORT': '5432',
     }
@@ -137,7 +137,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+    "http://localhost:5173", 
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -172,13 +172,4 @@ SIMPLE_JWT = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],  # Redis local
-        },
-    },
-}
-
+DEBUG = True
