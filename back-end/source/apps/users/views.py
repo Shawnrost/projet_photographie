@@ -226,3 +226,68 @@ class ChangerMotDePasseView(APIView):
             {"success": True, "message": "Mot de passe modifié avec succès."},
             status=status.HTTP_200_OK,
         )
+    
+# ─────────────────────────────────────────────
+# Recherche et profils publics
+# ─────────────────────────────────────────────
+ 
+class RechercheUtilisateurView(APIView):
+    """
+    GET /api/auth/recherche/?q=<terme>&role=<role>&page=1
+    Recherche publique d'utilisateurs par nom/prénom.
+    Paramètres :
+      - q    : terme de recherche (min 2 caractères)
+      - role : "photographe" | "client" (optionnel)
+    """
+    permission_classes = [AllowAny]
+ 
+    def get(self, request):
+        from django.db.models import Q
+        from apps.core.pagination import PaginationStandard
+        from .serializers import UtilisateurPublicSerializer
+        from .models import Utilisateur
+ 
+        terme = request.query_params.get("q", "").strip()
+        role  = request.query_params.get("role", "").strip()
+ 
+        if len(terme) < 2:
+            return Response(
+                {"success": False, "message": "Le terme de recherche doit contenir au moins 2 caractères."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+ 
+        qs = Utilisateur.objects.filter(is_active=True).filter(
+            Q(nom__icontains=terme) | Q(prenom__icontains=terme)
+        )
+ 
+        if role in ["photographe", "client"]:
+            qs = qs.filter(role=role)
+ 
+        qs = qs.select_related("profil_photographe").order_by("nom", "prenom")
+ 
+        paginator  = PaginationStandard()
+        page       = paginator.paginate_queryset(qs, request)
+        serializer = UtilisateurPublicSerializer(
+            page, many=True, context={"request": request}
+        )
+        return paginator.get_paginated_response(serializer.data)
+ 
+ 
+class ProfilPublicView(APIView):
+    """
+    GET /api/auth/utilisateurs/<uuid>/
+    Retourne le profil public d'un utilisateur.
+    """
+    permission_classes = [AllowAny]
+ 
+    def get(self, request, pk):
+        from django.shortcuts import get_object_or_404
+        from .serializers import UtilisateurPublicSerializer
+        from .models import Utilisateur
+ 
+        utilisateur = get_object_or_404(Utilisateur, id=pk, is_active=True)
+        serializer  = UtilisateurPublicSerializer(
+            utilisateur, context={"request": request}
+        )
+        return Response({"success": True, "data": serializer.data})
+ 

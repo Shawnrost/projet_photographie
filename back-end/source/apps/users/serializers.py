@@ -137,3 +137,63 @@ class ChangerMotDePasseSerializer(serializers.Serializer):
                 {"nouveau_mot_de_passe": list(e.messages)}
             )
         return attrs
+    
+
+class ProfilPhotographePublicSerializer(serializers.ModelSerializer):
+    """Profil photographe visible publiquement."""
+    nombre_publications = serializers.SerializerMethodField()
+    nombre_abonnes      = serializers.SerializerMethodField()
+ 
+    class Meta:
+        model  = ProfilPhotographe
+        fields = ["id", "bio", "adresse", "photo_couverture",
+                  "nombre_publications", "nombre_abonnes", "created_at"]
+ 
+    def get_nombre_publications(self, obj):
+        return obj.publications.filter(is_active=True).count()
+ 
+    def get_nombre_abonnes(self, obj):
+        return obj.utilisateur.abonnes.count()
+ 
+ 
+class UtilisateurPublicSerializer(serializers.ModelSerializer):
+    """
+    Serializer public — ne expose pas l'email.
+    Retourné par la recherche et les profils publics.
+    """
+    photo_profil       = serializers.SerializerMethodField()
+    profil_photographe = serializers.SerializerMethodField()
+    nombre_abonnes     = serializers.SerializerMethodField()
+    est_suivi          = serializers.SerializerMethodField()
+ 
+    class Meta:
+        model  = Utilisateur
+        fields = [
+            "id", "nom", "prenom", "role",
+            "photo_profil", "profil_photographe",
+            "nombre_abonnes", "est_suivi",
+            "created_at",
+        ]
+ 
+    def get_photo_profil(self, obj):
+        request = self.context.get("request")
+        if obj.photo_profil and request:
+            return request.build_absolute_uri(obj.photo_profil.url)
+        return None
+ 
+    def get_profil_photographe(self, obj):
+        if obj.role == "photographe" and hasattr(obj, "profil_photographe"):
+            return ProfilPhotographePublicSerializer(
+                obj.profil_photographe, context=self.context
+            ).data
+        return None
+ 
+    def get_nombre_abonnes(self, obj):
+        return obj.abonnes.count()
+ 
+    def get_est_suivi(self, obj):
+        """True si l'utilisateur connecté suit ce profil."""
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            return obj.abonnes.filter(suiveur=request.user).exists()
+        return False

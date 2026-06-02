@@ -414,3 +414,147 @@ interface ProfilPhotographe {
   created_at: string;
 }
 ```
+
+---
+
+## Recherche d'utilisateurs
+
+### Rechercher par nom / prénom
+
+**`GET /api/auth/recherche/?q=<terme>`** — Public, pas de token requis
+
+| Paramètre | Requis | Description |
+|---|---|---|
+| `q` | ✅ | Terme de recherche (min 2 caractères) |
+| `role` | ❌ | `"photographe"` ou `"client"` pour filtrer |
+| `page` | ❌ | Numéro de page (défaut : 1) |
+| `page_size` | ❌ | Résultats par page (défaut : 12, max : 50) |
+
+**Exemples :**
+```
+GET /api/auth/recherche/?q=marie
+GET /api/auth/recherche/?q=marie&role=photographe
+GET /api/auth/recherche/?q=dupont&role=client&page=2
+```
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "pagination": {
+    "total": 5,
+    "pages": 1,
+    "page_actuelle": 1,
+    "page_size": 12,
+    "suivante": null,
+    "precedente": null
+  },
+  "data": [
+    {
+      "id": "550e8400-...",
+      "nom": "Martin",
+      "prenom": "Marie",
+      "role": "photographe",
+      "photo_profil": "http://localhost:8000/media/profils/marie.jpg",
+      "nombre_abonnes": 142,
+      "est_suivi": false,
+      "profil_photographe": {
+        "id": "...",
+        "bio": "Photographe de mariage basée à Paris.",
+        "adresse": "Paris, France",
+        "photo_couverture": "http://localhost:8000/media/couvertures/cover.jpg",
+        "nombre_publications": 38,
+        "nombre_abonnes": 142,
+        "created_at": "2024-11-15T10:30:00Z"
+      },
+      "created_at": "2024-11-15T10:30:00Z"
+    },
+    {
+      "id": "...",
+      "nom": "Dupont",
+      "prenom": "Jean",
+      "role": "client",
+      "photo_profil": null,
+      "nombre_abonnes": 3,
+      "est_suivi": true,
+      "profil_photographe": null,
+      "created_at": "2024-11-20T08:00:00Z"
+    }
+  ]
+}
+```
+
+### Réponse erreur `400` — terme trop court
+
+```json
+{
+  "success": false,
+  "message": "Le terme de recherche doit contenir au moins 2 caractères."
+}
+```
+
+---
+
+### Profil public d'un utilisateur
+
+**`GET /api/auth/utilisateurs/<uuid>/`** — Public, pas de token requis
+
+Retourne le profil complet et public d'un utilisateur.
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-...",
+    "nom": "Martin",
+    "prenom": "Marie",
+    "role": "photographe",
+    "photo_profil": "http://localhost:8000/media/profils/marie.jpg",
+    "nombre_abonnes": 142,
+    "est_suivi": false,
+    "profil_photographe": {
+      "id": "...",
+      "bio": "Photographe de mariage basée à Paris.",
+      "adresse": "Paris, France",
+      "photo_couverture": "http://localhost:8000/media/couvertures/cover.jpg",
+      "nombre_publications": 38,
+      "nombre_abonnes": 142,
+      "created_at": "2024-11-15T10:30:00Z"
+    },
+    "created_at": "2024-11-15T10:30:00Z"
+  }
+}
+```
+
+> ⚠️ **L'email n'est jamais retourné** par ces endpoints pour des raisons de confidentialité.
+
+> 💡 **`est_suivi`** — `true` si l'utilisateur connecté suit ce profil. Utile pour afficher le bouton "Suivre" / "Ne plus suivre" directement depuis les résultats de recherche sans appel supplémentaire.
+
+---
+
+### TypeScript — mise à jour des types
+
+```typescript
+interface UtilisateurPublic {
+  id: string;
+  nom: string;
+  prenom: string;
+  role: "client" | "photographe";
+  photo_profil: string | null;
+  nombre_abonnes: number;
+  est_suivi: boolean;           // true si l'utilisateur connecté le suit
+  profil_photographe: ProfilPhotographePublic | null;
+  created_at: string;
+}
+
+interface ProfilPhotographePublic {
+  id: string;
+  bio: string | null;
+  adresse: string | null;
+  photo_couverture: string | null;
+  nombre_publications: number;
+  nombre_abonnes: number;
+  created_at: string;
+}
+```

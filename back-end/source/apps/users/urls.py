@@ -13,6 +13,8 @@ from .views import (
     ModifierProfilPhotographeView,
     SupprimerPhotoCouvertureView,
     ChangerMotDePasseView,
+    RechercheUtilisateurView,
+    ProfilPublicView,
 )
 
 app_name = "users"
@@ -31,4 +33,9 @@ urlpatterns = [
     path("profil/photographe/",                 ModifierProfilPhotographeView.as_view(),name="modifier_profil_photographe"),
     path("profil/photographe/photo-couverture/",SupprimerPhotoCouvertureView.as_view(), name="supprimer_photo_couverture"),
     path("profil/changer-mot-de-passe/",        ChangerMotDePasseView.as_view(),        name="changer_mot_de_passe"),
+
+        # ── Recherche & profils publics ───────────────
+    path("recherche/",               RechercheUtilisateurView.as_view(), name="recherche"),
+    path("utilisateurs/<uuid:pk>/",  ProfilPublicView.as_view(),         name="profil_public"),
+
 ]
