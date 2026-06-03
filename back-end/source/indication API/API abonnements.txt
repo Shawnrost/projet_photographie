@@ -1,8 +1,8 @@
 # 📡 API Abonnements — Documentation Frontend
 
 > **Base URL :** `http://localhost:8000/api/abonnements/`  
-> **Auth :** `Authorization: Bearer <access_token>` (sauf tarifs)  
-> **Accès :** tous les endpoints (sauf tarifs) sont réservés aux **photographes**
+> **Auth :** `Authorization: Bearer <access_token>` requis sur tous les endpoints sauf tarifs  
+> **Accès :** endpoints photographe → rôle `photographe` requis / endpoints admin → rôle `admin` requis
 
 ---
 
@@ -13,13 +13,17 @@
 - [Vérifier son abonnement actif](#3-vérifier-son-abonnement-actif)
 - [Annuler un abonnement](#4-annuler-un-abonnement)
 - [Historique des abonnements](#5-historique-des-abonnements)
+- [Essai gratuit](#essai-gratuit)
+- [Suivi (Follow / Unfollow)](#suivi-follow--unfollow)
+- [Admin — CRUD Plans tarifaires](#admin--crud-plans-tarifaires)
 - [Structure des objets](#structure-des-objets)
 
 ---
 
 ## 1. Grille tarifaire
 
-**`GET /api/abonnements/tarifs/`** — Public, pas de token requis
+**`GET /api/abonnements/tarifs/`** — Public, pas de token requis  
+Retourne uniquement les tarifs actifs (`est_actif = true`).
 
 ### Réponse `200 OK`
 
@@ -27,17 +31,17 @@
 {
   "success": true,
   "data": [
-    { "plan": "basic",   "duree": "1_mois",  "prix": 10.0,  "label": "Basic — 1 mois" },
-    { "plan": "basic",   "duree": "3_mois",  "prix": 27.0,  "label": "Basic — 3 mois" },
-    { "plan": "basic",   "duree": "6_mois",  "prix": 48.0,  "label": "Basic — 6 mois" },
-    { "plan": "premium", "duree": "1_mois",  "prix": 25.0,  "label": "Premium — 1 mois" },
-    { "plan": "premium", "duree": "3_mois",  "prix": 67.5,  "label": "Premium — 3 mois" },
-    { "plan": "premium", "duree": "6_mois",  "prix": 120.0, "label": "Premium — 6 mois" }
+    { "id": "...", "plan": "basic",   "plan_label": "Basic",   "duree": "1_mois", "duree_label": "1 mois",  "prix": "9.99"  },
+    { "id": "...", "plan": "basic",   "plan_label": "Basic",   "duree": "3_mois", "duree_label": "3 mois",  "prix": "24.99" },
+    { "id": "...", "plan": "basic",   "plan_label": "Basic",   "duree": "6_mois", "duree_label": "6 mois",  "prix": "44.99" },
+    { "id": "...", "plan": "premium", "plan_label": "Premium", "duree": "1_mois", "duree_label": "1 mois",  "prix": "19.99" },
+    { "id": "...", "plan": "premium", "plan_label": "Premium", "duree": "3_mois", "duree_label": "3 mois",  "prix": "54.99" },
+    { "id": "...", "plan": "premium", "plan_label": "Premium", "duree": "6_mois", "duree_label": "6 mois",  "prix": "99.99" }
   ]
 }
 ```
 
-> 💡 Utilise cet endpoint pour afficher la page de tarification sans hardcoder les prix côté React.
+> 💡 Utilise `plan_label` et `duree_label` directement dans l'interface — pas besoin de traduire les valeurs.
 
 ---
 
@@ -72,7 +76,15 @@
     "type": "basic",
     "duree": "3_mois",
     "status": "active",
-    "prix": "27.00",
+    "prix": "24.99",
+    "plan_tarif": {
+      "id": "...",
+      "plan": "basic",
+      "plan_label": "Basic",
+      "duree": "3_mois",
+      "duree_label": "3 mois",
+      "prix": "24.99"
+    },
     "date_deb": "2024-11-15T10:30:00Z",
     "date_fin": "2025-02-13T10:30:00Z",
     "est_actif": true,
@@ -87,9 +99,7 @@
 ```json
 {
   "success": false,
-  "errors": {
-    "type": ["\"gold\" is not a valid choice."]
-  }
+  "errors": { "type": ["\"gold\" is not a valid choice."] }
 }
 ```
 
@@ -99,7 +109,7 @@
 
 **`GET /api/abonnements/statut/`** — 🔒 Photographe requis
 
-> Cet endpoint **met à jour automatiquement** le statut si `date_fin` est dépassée.  
+> Met à jour automatiquement le statut si `date_fin` est dépassée.  
 > À appeler au chargement du dashboard photographe.
 
 ### Réponse — abonnement actif `200 OK`
@@ -114,7 +124,8 @@
       "type": "premium",
       "duree": "6_mois",
       "status": "active",
-      "prix": "120.00",
+      "prix": "99.99",
+      "plan_tarif": { ... },
       "date_deb": "2024-11-15T10:30:00Z",
       "date_fin": "2025-05-14T10:30:00Z",
       "est_actif": true,
@@ -137,7 +148,7 @@
 }
 ```
 
-> 💡 Utilise `a_abonnement_actif` pour afficher ou masquer les fonctionnalités premium dans l'interface.
+> 💡 Utilise `a_abonnement_actif` pour afficher ou masquer les fonctionnalités premium.
 
 ---
 
@@ -148,12 +159,8 @@
 ### Corps de la requête
 
 ```json
-{
-  "confirmation": true
-}
+{ "confirmation": true }
 ```
-
-> Le champ `confirmation: true` est obligatoire — protection contre les annulations accidentelles.
 
 ### Réponse `200 OK`
 
@@ -161,14 +168,7 @@
 {
   "success": true,
   "message": "Abonnement annulé.",
-  "data": {
-    "id": "...",
-    "type": "basic",
-    "status": "annule",
-    "est_actif": false,
-    "jours_restants": 0,
-    ...
-  }
+  "data": { "status": "annule", "est_actif": false, ... }
 }
 ```
 
@@ -185,105 +185,41 @@
 
 **`GET /api/abonnements/historique/`** — 🔒 Photographe requis
 
-### Réponse `200 OK`
-
 ```json
 {
   "success": true,
   "data": [
-    {
-      "id": "...",
-      "type": "premium",
-      "duree": "6_mois",
-      "status": "expire",
-      "prix": "120.00",
-      "date_deb": "2024-05-01T00:00:00Z",
-      "date_fin": "2024-11-01T00:00:00Z",
-      "est_actif": false,
-      "jours_restants": 0,
-      "created_at": "2024-05-01T00:00:00Z"
-    },
-    {
-      "id": "...",
-      "type": "basic",
-      "duree": "3_mois",
-      "status": "active",
-      ...
-    }
+    { "type": "premium", "duree": "6_mois", "status": "expire", "prix": "99.99", ... },
+    { "type": "basic",   "duree": "3_mois", "status": "active", "prix": "24.99", ... }
   ]
 }
 ```
 
 ---
 
-## Structure des objets
-
-```typescript
-interface Abonnement {
-  id: string;
-  type: "basic" | "premium";
-  duree: "1_mois" | "3_mois" | "6_mois";
-  status: "active" | "expire" | "annule";
-  prix: string;             // Décimal sous forme de string ex: "27.00"
-  date_deb: string;         // ISO 8601
-  date_fin: string;         // ISO 8601
-  est_actif: boolean;       // true si status=active ET date_fin non dépassée
-  jours_restants: number;   // 0 si expiré
-  created_at: string;
-}
-
-interface StatutAbonnement {
-  a_abonnement_actif: boolean;
-  abonnement: Abonnement | null;
-}
-
-interface Tarif {
-  plan: "basic" | "premium";
-  duree: "1_mois" | "3_mois" | "6_mois";
-  prix: number;
-  label: string;
-}
-```
-
----
-
-*Documentation — module abonnements. Voir aussi `README_API_AUTH.md`, `README_API_PROFIL.md`, `README_API_PUBLICATIONS.md`.*
-
----
-
 ## Essai gratuit
 
-> À l'inscription d'un compte **photographe**, un abonnement **Premium gratuit d'1 mois** est créé automatiquement. Aucune action requise côté frontend — il est actif dès la création du compte.
+> À l'inscription d'un compte **photographe**, un abonnement **Premium gratuit d'1 mois** est créé automatiquement. Aucune action requise côté frontend.
 
-Caractéristiques de l'essai :
-- Plan : `premium`
-- Durée : `1_mois`
-- Prix : `0.00`
+- Plan : `premium` — Prix : `0.00` — Durée : 30 jours
 - Utilisable **une seule fois** par photographe
+- Le champ `essai_utilise` dans `profil_photographe` indique si l'essai a déjà été utilisé
 
-Le champ `essai_utilise` dans `profil_photographe` indique si l'essai a déjà été utilisé :
 ```json
-{
-  "profil_photographe": {
-    "essai_utilise": true
-  }
-}
+{ "profil_photographe": { "essai_utilise": true } }
 ```
 
-> 💡 Utilise ce champ pour afficher ou masquer un badge "Essai gratuit disponible" sur la page de tarification.
+> 💡 Utilise `essai_utilise` pour afficher/masquer un badge "Essai gratuit disponible" sur la page de tarification.
 
 ---
 
 ## Suivi (Follow / Unfollow)
 
-### Follow / Unfollow — toggle
+### Toggle follow/unfollow
 
 **`POST /api/abonnements/suivre/<uuid>/`** — 🔒 Authentifié requis
 
-> Toggle : si déjà suivi → unfollow, sinon → follow.  
-> `<uuid>` = ID de l'utilisateur à suivre/ne plus suivre.
-
-Aucun corps requis.
+Aucun corps requis. Toggle : si déjà suivi → unfollow, sinon → follow.
 
 ### Réponse `200 OK`
 
@@ -297,11 +233,6 @@ Aucun corps requis.
 }
 ```
 
-| Champ | Description |
-|---|---|
-| `suivi` | `true` = tu suis maintenant, `false` = tu ne suis plus |
-| `nombre_abonnes` | Nouveau nombre d'abonnés de l'utilisateur ciblé |
-
 ### Réponse erreur `400`
 
 ```json
@@ -310,38 +241,19 @@ Aucun corps requis.
 
 ---
 
-### Liste des abonnés d'un utilisateur
+### Liste des abonnés
 
 **`GET /api/abonnements/utilisateurs/<uuid>/abonnes/`** — Public
 
-Retourne les utilisateurs qui suivent cet utilisateur.
-
-```json
-{
-  "success": true,
-  "pagination": { "total": 42, ... },
-  "data": [
-    {
-      "id": "...",
-      "nom": "Dupont",
-      "prenom": "Jean",
-      "role": "client",
-      "photo_profil": "http://localhost:8000/media/profils/jean.jpg",
-      ...
-    }
-  ]
-}
-```
+Retourne les utilisateurs qui suivent cet utilisateur (paginé).
 
 ---
 
-### Liste des utilisateurs suivis
+### Liste des suivis
 
 **`GET /api/abonnements/utilisateurs/<uuid>/suivis/`** — Public
 
-Retourne les utilisateurs que cet utilisateur suit.
-
-Même format de réponse que la liste des abonnés.
+Retourne les utilisateurs que cet utilisateur suit (paginé).
 
 ---
 
@@ -349,25 +261,137 @@ Même format de réponse que la liste des abonnés.
 
 **`GET /api/abonnements/fil-actualite/`** — 🔒 Authentifié requis
 
-Retourne les publications des photographes suivis par l'utilisateur connecté, triées par date décroissante.
+Publications des photographes suivis, triées par date décroissante.  
+Même format que `GET /api/publications/`.
+
+> 💡 C'est l'endpoint principal de la page d'accueil après connexion.
+
+---
+
+## Admin — CRUD Plans tarifaires
+
+> 🔒 **Rôle `admin` requis sur tous ces endpoints.** Retourne `403` pour tout autre rôle.
+
+### Liste et création
+
+**`GET /api/abonnements/admin/tarifs/`** — Retourne TOUS les tarifs (actifs et inactifs)
 
 ```json
 {
   "success": true,
-  "pagination": { "total": 24, "pages": 2, ... },
-  "data": [ /* liste de publications — même format que GET /api/publications/ */ ]
+  "data": [
+    {
+      "id": "...",
+      "plan": "basic",
+      "plan_label": "Basic",
+      "duree": "1_mois",
+      "duree_label": "1 mois",
+      "prix": "9.99",
+      "est_actif": true,
+      "created_at": "2024-11-15T10:30:00Z",
+      "updated_at": "2024-11-15T10:30:00Z"
+    }
+  ]
 }
 ```
 
-> 💡 C'est l'endpoint principal de la page d'accueil après connexion — le fil personnalisé de l'utilisateur.
+**`POST /api/abonnements/admin/tarifs/`** — Créer un tarif
+
+```json
+{
+  "plan":      "basic",
+  "duree":     "1_mois",
+  "prix":      9.99,
+  "est_actif": true
+}
+```
+
+| Champ | Requis | Valeurs |
+|---|---|---|
+| `plan` | ✅ | `"basic"` \| `"premium"` |
+| `duree` | ✅ | `"1_mois"` \| `"3_mois"` \| `"6_mois"` |
+| `prix` | ✅ | Nombre décimal > 0 |
+| `est_actif` | ❌ | `true` par défaut |
+
+### Réponse erreur — doublon `400`
+
+```json
+{
+  "success": false,
+  "errors": { "non_field_errors": ["Un tarif 'basic — 1_mois' existe déjà."] }
+}
+```
 
 ---
 
-### TypeScript — types suivi
+### Détail, modification et suppression
+
+**`GET /api/abonnements/admin/tarifs/<uuid>/`** — Détail d'un tarif
+
+**`PATCH /api/abonnements/admin/tarifs/<uuid>/`** — Modifier (tous les champs optionnels)
+
+```json
+{ "prix": 12.99 }
+```
+ou
+```json
+{ "est_actif": false }
+```
+
+**`DELETE /api/abonnements/admin/tarifs/<uuid>/`** — Supprimer
+
+> ⚠️ La suppression est **bloquée** si des abonnements actifs utilisent ce tarif :
+> ```json
+> {
+>   "success": false,
+>   "message": "2 abonnement(s) actif(s) utilisent ce tarif. Désactivez-le plutôt que de le supprimer."
+> }
+> ```
+> Dans ce cas, utilise `PATCH` avec `{ "est_actif": false }` pour désactiver sans supprimer.
+
+### Réponse suppression `200 OK`
+
+```json
+{ "success": true, "message": "Plan tarifaire supprimé." }
+```
+
+---
+
+## Structure des objets
 
 ```typescript
+interface PlanTarif {
+  id: string;
+  plan: "basic" | "premium";
+  plan_label: string;         // "Basic" | "Premium"
+  duree: "1_mois" | "3_mois" | "6_mois";
+  duree_label: string;        // "1 mois" | "3 mois" | "6 mois"
+  prix: string;               // Décimal ex: "9.99"
+  est_actif?: boolean;        // Présent uniquement sur les endpoints admin
+  created_at?: string;        // Présent uniquement sur les endpoints admin
+  updated_at?: string;        // Présent uniquement sur les endpoints admin
+}
+
+interface Abonnement {
+  id: string;
+  type: "basic" | "premium";
+  duree: "1_mois" | "3_mois" | "6_mois";
+  status: "active" | "expire" | "annule";
+  prix: string;
+  plan_tarif: PlanTarif | null;
+  date_deb: string;
+  date_fin: string;
+  est_actif: boolean;
+  jours_restants: number;
+  created_at: string;
+}
+
 interface StatutSuivi {
-  suivi: boolean;         // true = je suis, false = je ne suis plus
+  suivi: boolean;
   nombre_abonnes: number;
 }
 ```
+
+---
+
+*Documentation — module abonnements. Voir aussi `README_API_AUTH.md` pour l'essai gratuit et les types utilisateur.*

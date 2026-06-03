@@ -44,3 +44,37 @@ class AnnulerAbonnementSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("Vous devez confirmer l'annulation.")
         return value
+
+
+class PlanTarifCrudSerializer(serializers.ModelSerializer):
+    """Serializer CRUD pour la gestion des plans tarifaires par l'admin."""
+    plan_label  = serializers.CharField(source="get_plan_display",  read_only=True)
+    duree_label = serializers.CharField(source="get_duree_display", read_only=True)
+
+    class Meta:
+        model  = PlanTarif
+        fields = [
+            "id", "plan", "plan_label", "duree", "duree_label",
+            "prix", "est_actif", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "plan_label", "duree_label", "created_at", "updated_at"]
+
+    def validate_prix(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Le prix doit être supérieur à 0.")
+        return value
+
+    def validate(self, attrs):
+        # Vérifier l'unicité plan+durée à la création
+        plan  = attrs.get("plan")
+        duree = attrs.get("duree")
+        if plan and duree:
+            qs = PlanTarif.objects.filter(plan=plan, duree=duree)
+            # Exclure l'instance courante lors d'une modification
+            if self.instance:
+                qs = qs.exclude(id=self.instance.id)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {"non_field_errors": f"Un tarif '{plan} — {duree}' existe déjà."}
+                )
+        return attrs
