@@ -93,6 +93,8 @@ class PublicationCreateSerializer(serializers.ModelSerializer):
         write_only=True
     )
 
+    is_active = serializers.BooleanField(required=False, default=True)
+
     class Meta:
         model  = Publication
         fields = [
@@ -101,13 +103,23 @@ class PublicationCreateSerializer(serializers.ModelSerializer):
         ]
 
     def to_internal_value(self, data):
-        champs_scalaires = ["titre", "description", "type", "prix", "is_active"]
+        champs_scalaires = ["titre", "description", "type", "prix"]
         data_normalisee  = data.copy()
         for champ in champs_scalaires:
             if champ in data_normalisee:
                 valeur = data_normalisee[champ]
                 if isinstance(valeur, list) and len(valeur) == 1:
                     data_normalisee[champ] = valeur[0]
+
+        # Gérer is_active séparément
+        # Si non envoyé → retirer du dict pour laisser le default=True du modèle
+        # Si envoyé → convertir string en booléen
+        if "is_active" in data_normalisee:
+            valeur = data_normalisee["is_active"]
+            if isinstance(valeur, list) and len(valeur) == 1:
+                valeur = valeur[0]
+            if isinstance(valeur, str):
+                data_normalisee["is_active"] = valeur.lower() not in ("false", "0", "no", "")
         return super().to_internal_value(data_normalisee)
 
     def validate(self, attrs):
