@@ -8,9 +8,10 @@ from .serializers import (
     SouscrireAbonnementSerializer,
     AnnulerAbonnementSerializer,
     PlanTarifSerializer,
+    PlanTarifCrudSerializer,
 )
 from .services import AbonnementService, SuiviService
-from apps.users.permissions import EstPhotographe
+from apps.users.permissions import EstPhotographe, EstAdmin
 from apps.users.models import Utilisateur
 from apps.users.serializers import UtilisateurSerializer
 from apps.publications.serializers import PublicationListSerializer
@@ -227,4 +228,96 @@ class FilActualiteView(APIView):
             page, many=True, context={"request": request}
         )
         return paginator.get_paginated_response(serializer.data)
+ 
+# ─────────────────────────────────────────────
+# CRUD Plans tarifaires — Admin uniquement
+# ─────────────────────────────────────────────
+ 
+class PlanTarifListView(APIView):
+    """
+    GET  /api/abonnements/admin/tarifs/   → liste tous les tarifs (actifs et inactifs)
+    POST /api/abonnements/admin/tarifs/   → créer un nouveau tarif
+    """
+    def get_permissions(self):
+        return [IsAuthenticated(), EstAdmin()]
+ 
+    def get(self, request):
+        from .models import PlanTarif
+        tarifs     = PlanTarif.objects.all().order_by("plan", "duree")
+        serializer = PlanTarifCrudSerializer(tarifs, many=True)
+        return Response({"success": True, "data": serializer.data})
+ 
+    def post(self, request):
+        serializer = PlanTarifCrudSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"success": False, "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        tarif = serializer.save()
+        return Response(
+            {
+                "success": True,
+                "message": "Plan tarifaire créé.",
+                "data": PlanTarifCrudSerializer(tarif).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+ 
+ 
+class PlanTarifDetailView(APIView):
+    """
+    GET    /api/abonnements/admin/tarifs/<uuid>/   → détail d'un tarif
+    PATCH  /api/abonnements/admin/tarifs/<uuid>/   → modifier un tarif
+    DELETE /api/abonnements/admin/tarifs/<uuid>/   → supprimer un tarif
+    """
+    def get_permissions(self):
+        return [IsAuthenticated(), EstAdmin()]
+ 
+    def _get_tarif(self, pk):
+        from django.shortcuts import get_object_or_404
+        from .models import PlanTarif
+        return get_object_or_404(PlanTarif, id=pk)
+ 
+    def get(self, request, pk):
+        tarif      = self._get_tarif(pk)
+        serializer = PlanTarifCrudSerializer(tarif)
+        return Response({"success": True, "data": serializer.data})
+ 
+    def patch(self, request, pk):
+        tarif      = self._get_tarif(pk)
+        serializer = PlanTarifCrudSerializer(tarif, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(
+                {"success": False, "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        tarif = serializer.save()
+        return Response({
+            "success": True,
+            "message": "Plan tarifaire mis à jour.",
+            "data": PlanTarifCrudSerializer(tarif).data,
+        })
+ 
+    def delete(self, request, pk):
+        tarif = self._get_tarif(pk)
+        # Vérifier qu'aucun abonnement actif n'utilise ce tarif
+        from .models import Abonnement, SubscriptionStatus
+        abonnements_actifs = Abonnement.objects.filter(
+            plan_tarif=tarif,
+            status=SubscriptionStatus.ACTIVE
+        ).count()
+        if abonnements_actifs > 0:
+            return Response(
+                {
+                    "success": False,
+                    "message": f"{abonnements_actifs} abonnement(s) actif(s) utilisent ce tarif. Désactivez-le plutôt que de le supprimer."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        tarif.delete()
+        return Response(
+            {"success": True, "message": "Plan tarifaire supprimé."},
+            status=status.HTTP_200_OK,
+        )
  
