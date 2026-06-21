@@ -1,12 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; 
-
-import Entete_app from '../entete/Entete_app.jsx';
 import CartePublication from './CartePublication.jsx';
 import AperçuPublication from './AperçuPublication.jsx';
 import BarreFiltres from './BarreFiltres.jsx';
+import api, { likePublication } from '../../services/api';
 
 const API_BASE = 'http://localhost:8000/api';
 
@@ -31,7 +29,7 @@ const Accueil = () => {
 
   const [categories, setCategories]         = useState([]);
   const [filtreCat, setFiltreCat]           = useState('');
-  const [filtreType, setFiltreType]         = useState('');
+  const [filtreType, setFiltreType]         = useState('publicite'); // ← Par défaut : publicité
   const [rechercheInput, setRechercheInput] = useState('');
   const [recherche, setRecherche]           = useState('');
 
@@ -42,13 +40,20 @@ const Accueil = () => {
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (!token) { navigate('/connexion'); return; }
-    axios.get(`${API_BASE}/auth/moi/`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => { if (r.data.success) setUser(r.data.data); else throw new Error(); })
+    
+    api.get('/auth/moi/')
+      .then(r => { 
+        if (r.data.success) {
+          setUser(r.data.data);
+          localStorage.setItem('user', JSON.stringify(r.data.data));
+        } else throw new Error(); 
+      })
       .catch(() => {
         setErrorConnexion(true);
         setTimeout(() => {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user');
           navigate('/connexion');
         }, 2000);
       })
@@ -57,7 +62,7 @@ const Accueil = () => {
 
   /* ── Récupération des Catégories ── */
   useEffect(() => {
-    axios.get(`${API_BASE}/publications/categories/`)
+    api.get('/publications/categories/')
       .then(r => { if (r.data.success) setCategories(r.data.data); })
       .catch(() => {});
   }, []);
@@ -70,11 +75,16 @@ const Accueil = () => {
       if (filtreCat)  params.append('categorie', filtreCat);
       if (filtreType) params.append('type', filtreType);
       if (recherche)  params.append('q', recherche);
-      const res = await axios.get(`${API_BASE}/publications/?${params}`);
+      
+      const res = await api.get(`/publications/?${params}`);
       if (res.data.success) {
         let data = res.data.data;
-        if (user?.role === 'photographe' && user?.id)
+        
+        // 🔒 MASQUER LES PUBLICATIONS DU PHOTOGRAPHE CONNECTÉ
+        if (user?.role === 'photographe' && user?.id) {
           data = data.filter(pub => pub.photographe_id !== user.id);
+        }
+        
         setPublications(data);
         setPagination(res.data.pagination);
         const lm = {};
@@ -87,34 +97,54 @@ const Accueil = () => {
 
   useEffect(() => { if (user) fetchPubs(page); }, [user, page, filtreCat, filtreType, recherche, fetchPubs]);
 
-  /* ── Système de Likes ── */
+  /* ── Système de Likes avec API centralisée ── */
   const handleLike = async (pubId, e) => {
     e?.stopPropagation();
     const token = localStorage.getItem('access_token');
-    if (!token) return;
+    if (!token) {
+      navigate('/connexion');
+      return;
+    }
+    
     try {
-      const res = await axios.post(`${API_BASE}/publications/${pubId}/like/`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await likePublication(pubId);
       if (res.data.success) {
-        setLikedMap(prev => ({ ...prev, [pubId]: res.data.data.liked }));
+        const { liked, nombre_likes } = res.data.data;
+        
+        setLikedMap(prev => ({ ...prev, [pubId]: liked }));
         setPublications(prev => prev.map(p =>
-          p.id === pubId ? { ...p, nombre_likes: res.data.data.nombre_likes } : p
+          p.id === pubId ? { ...p, nombre_likes, a_like: liked } : p
         ));
-        if (focusedPub?.id === pubId)
-          setFocusedPub(prev => ({ ...prev, nombre_likes: res.data.data.nombre_likes }));
+        
+        if (focusedPub?.id === pubId) {
+          setFocusedPub(prev => ({ 
+            ...prev, 
+            nombre_likes, 
+            a_like: liked 
+          }));
+        }
       }
-    } catch {}
+    } catch (err) {
+      console.error('Erreur like:', err);
+      if (err.response?.status === 401) {
+        navigate('/connexion');
+      }
+    }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
     navigate('/connexion');
   };
 
   const resetFiltres = () => {
-    setFiltreCat(''); setFiltreType(''); setRecherche(''); setRechercheInput(''); setPage(1);
+    setFiltreCat('');
+    setFiltreType('publicite'); // ← Reset vers publicité par défaut
+    setRecherche('');
+    setRechercheInput('');
+    setPage(1);
   };
 
   if (loading) return (
@@ -144,7 +174,8 @@ const Accueil = () => {
 
   return (
     <div style={{ backgroundColor: CONFIG_THEME.bg }} className="min-h-screen font-sans text-[#f8f9f8] selection:bg-[#aec3b0]/20 selection:text-white">
-      <Entete_app user={user} onLogout={handleLogout} />
+      {/* ❌ SUPPRIMEZ CETTE LIGNE */}
+      {/* <Entete_app user={user} onLogout={handleLogout} /> */}
 
       <main className="pt-32 pb-24 px-6 md:px-12 lg:px-20 max-w-[1600px] mx-auto">
         
@@ -191,8 +222,21 @@ const Accueil = () => {
           >
             <div className="w-[1px] h-16 bg-white/10" />
             <p className="text-white/30 text-[10px] tracking-[0.5em] uppercase italic">
-              Aucune publication disponible
+              {filtreType === 'publicite' 
+                ? 'Aucune publicité disponible'
+                : filtreType === 'vente'
+                ? 'Aucune œuvre en vente disponible'
+                : 'Aucune publication disponible'}
             </p>
+            {filtreType && (
+              <button
+                onClick={resetFiltres}
+                style={{ color: CONFIG_THEME.accentSage }}
+                className="text-[10px] font-mono tracking-wider uppercase hover:text-white transition-colors border border-[#aec3b0]/20 px-4 py-2 rounded-lg"
+              >
+                Voir toutes les publications
+              </button>
+            )}
           </motion.div>
         ) : (
           <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

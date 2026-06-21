@@ -18,7 +18,7 @@ const Inscription = () => {
   const [tempRole, setTempRole] = useState(null); 
   const [bgIndex, setBgIndex] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false); // État pour l'écran de succès
+  const [showSuccess, setShowSuccess] = useState(false);
   const [apiErrors, setApiErrors] = useState(null);
   const navigate = useNavigate();
 
@@ -29,7 +29,9 @@ const Inscription = () => {
     email: "",
     photo_profil: null,
     password: "",
-    password_confirm: ""
+    password_confirm: "",
+    abonnement_plan: "basic", 
+    abonnement_duree: "1_mois"
   });
 
   useEffect(() => {
@@ -41,29 +43,31 @@ const Inscription = () => {
     setFormData((prev) => ({ ...prev, ...fields }));
   };
 
-  const handleFinalSubmit = async (passwordFields) => {
+  const handleFinalSubmit = async (donneesSecurite = {}) => {
     setLoading(true);
     setApiErrors(null);
 
+    // Fusion immédiate des mots de passe reçus de l'étape sécurité avec le reste
     const finalPayload = {
       ...formData,
-      ...passwordFields
+      ...donneesSecurite
     };
 
     try {
+      // Requête directe vers ton API d'authentification Django
       const response = await axios.post('http://localhost:8000/api/auth/inscription/', {
         email: finalPayload.email,
         nom: finalPayload.nom,
         prenom: finalPayload.prenom,
         role: finalPayload.role,
         password: finalPayload.password,
-        password_confirm: finalPayload.password_confirm
+        password_confirm: finalPayload.password_confirm,
+        abonnement_type: finalPayload.abonnement_plan,
+        abonnement_duree: finalPayload.abonnement_duree
       });
 
       if (response.data.success) {
-        // Déclenche l'animation de succès stylée
         setShowSuccess(true);
-        // Laisse l'animation s'exécuter pendant 3.5 secondes avant de rediriger
         setTimeout(() => {
           navigate('/connexion');
         }, 3500);
@@ -87,15 +91,15 @@ const Inscription = () => {
       widgets: [{ val: "12k", label: "MEMBRES" }, { val: "450", label: "ARTISTES" }]
     },
     client: {
-      title: step === 1 ? "Collectionneur" : step === 2 ? "L'Identité" : step === 3 ? "Le Portrait" : "Sécurité",
+      title: step === 1 ? "Collectionneur" : step === 2 ? "L'Identité" : step === 3 ? "Le Portrait" : "La Sécurité",
       subtitle: "UN ACCÈS PRIVILÉGIÉ AUX ŒUVRES LES PLUS RARES.",
       details: "Bénéficiez de certificats d'authenticité numériques et de ventes privées.",
       widgets: [{ val: "VIP", label: "PRIVILÈGE" }, { val: "24/7", label: "SUPPORT" }]
     },
     photographe: {
-      title: step === 1 ? "Photographe" : step === 2 ? "L'Identité" : step === 3 ? "Le Portrait" : "Sécurité",
+      title: step === 1 ? "Photographe" : step === 2 ? "L'Identité" : step === 3 ? "Le Portrait" : "La Sécurité",
       subtitle: "EXPOSEZ VOTRE TALENT À UNE AUDIENCE INTERNATIONALE.",
-      details: "Gérer vos séries limitées et profitez de notre infrastructure premium.",
+      details: "Gérez vos séries limitées et profitez de notre infrastructure premium.",
       widgets: [{ val: "90%", label: "COMMISSION" }, { val: "ELITE", label: "VISIBILITÉ" }]
     }
   };
@@ -103,65 +107,26 @@ const Inscription = () => {
   const activeContent = leftContent[tempRole] || leftContent[formData.role] || leftContent.default;
 
   return (
-    <section className="relative w-screen h-screen bg-[#1a1a1a] overflow-hidden flex items-center justify-center font-sans">
+    <section className="relative w-screen h-screen bg-[#1a1a1a] overflow-x-hidden overflow-y-auto flex items-center justify-center font-sans py-12">
       
-      {/* --- ÉCRAN DE SUCCÈS OVERLAY ULTRA STYLÉ --- */}
+      {/* Overlay Succès */}
       <AnimatePresence>
         {showSuccess && (
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 z-50 bg-[#1a1a1a] flex flex-col items-center justify-center overflow-hidden"
           >
-            {/* Cercle doré minimaliste qui s'étend */}
-            <motion.div 
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: [0.8, 1.1, 1], opacity: [0, 0.15, 0.05] }}
-              transition={{ duration: 2, ease: "easeOut" }}
-              className="absolute w-[600px] h-[600px] rounded-full border border-[#c5a358] pointer-events-none"
-            />
-
-            {/* Contenu textuel poétique */}
             <div className="text-center space-y-6 z-10 px-6">
-              <motion.p 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 0.4, y: 0 }}
-                transition={{ delay: 0.3, duration: 1 }}
-                className="text-[#f5f5f1] text-[10px] tracking-[0.6em] uppercase font-mono italic"
-              >
-                Acquisition de profil réussie
-              </motion.p>
-
-              <motion.h1 
-                initial={{ opacity: 0, letterSpacing: "[-0.05em]", filter: "blur(5px)" }}
-                animate={{ opacity: 1, letterSpacing: "[-0.02em]", filter: "blur(0px)" }}
-                transition={{ delay: 0.6, duration: 1.5, ease: "easeOut" }}
-                className="text-[#f5f5f1] font-serif italic text-6xl md:text-8xl font-light leading-none"
-              >
-                Bienvenue à la Galerie.
-              </motion.h1>
-
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: "80px" }}
-                transition={{ delay: 1.2, duration: 1 }}
-                className="h-[1px] bg-[#c5a358] mx-auto mt-8"
-              />
-
-              <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.3 }}
-                transition={{ delay: 1.8, duration: 1 }}
-                className="text-[#f5f5f1] text-[9px] tracking-[0.2em] uppercase font-light pt-4"
-              >
-                Préparation de votre espace personnel...
-              </motion.p>
+              <p className="text-[#f5f5f1]/40 text-[10px] tracking-[0.6em] uppercase font-mono italic">Acquisition de profil réussie</p>
+              <h1 className="text-[#f5f5f1] font-serif italic text-6xl md:text-8xl font-light leading-none">Bienvenue à la Galerie.</h1>
+              <div className="h-[1px] bg-[#c5a358] mx-auto mt-8 w-20" />
+              <p className="text-[#f5f5f1]/30 text-[9px] tracking-[0.2em] uppercase font-light pt-4">Préparation de votre espace personnel...</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Retour connexion */}
       <motion.button 
         initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
         onClick={() => navigate('/connexion')}
@@ -173,25 +138,30 @@ const Inscription = () => {
         </span>
       </motion.button>
 
-      <div className="absolute inset-0 z-0">
+      {/* Arrière-plan */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <AnimatePresence mode="wait">
           <motion.img 
             key={bgIndex} src={BG_IMAGES[bgIndex]} 
-            initial={{ scale: 1.1, opacity: 0 }} animate={{ scale: 1.05, opacity: 0.2 }}
+            initial={{ scale: 1.1, opacity: 0 }} animate={{ scale: 1.05, opacity: 0.15 }}
             exit={{ scale: 1, opacity: 0 }} transition={{ duration: 4 }}
             className="w-full h-full object-cover" 
           />
         </AnimatePresence>
-        <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a1a] via-[#1a1a1a]/95 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a1a] via-[#1a1a1a]/98 to-transparent" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[1300px] px-12 grid grid-cols-1 lg:grid-cols-12 gap-20 items-center">
-        
-        <div className="lg:col-span-7 hidden lg:block border-l border-[#c5a358]/20 pl-10">
-          <motion.div key={step + (tempRole || formData.role)} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+      <div className="relative z-10 w-full max-w-[1300px] px-12 flex justify-center items-center">
+        <motion.div 
+          key="form-layout"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="w-full grid grid-cols-1 lg:grid-cols-12 gap-20 items-center"
+        >
+          {/* Panneau de Gauche */}
+          <div className="lg:col-span-7 hidden lg:block border-l border-[#c5a358]/20 pl-10">
             <span className="text-[#c5a358] font-mono text-[9px] tracking-[0.5em] uppercase block mb-4 italic">Étape 0{step}</span>
-            <h2 className="text-[#f5f5f1] font-serif italic text-7xl xl:text-8xl leading-none tracking-tighter transition-all">
-              {step === 1 ? activeContent.title : step === 2 ? "L'Identité" : step === 3 ? "Le Portrait" : "La Sécurité"}
+            <h2 className="text-[#f5f5f1] font-serif italic text-6xl xl:text-7xl leading-none tracking-tighter">
+              {activeContent.title}
             </h2>
             <div className="mt-8 space-y-6 max-w-sm">
                 <p className="text-[#f5f5f1]/60 text-[10px] leading-relaxed tracking-[0.2em] uppercase font-light">{activeContent.subtitle}</p>
@@ -214,57 +184,45 @@ const Inscription = () => {
                     </div>
                 ))}
             </div>
-          </motion.div>
-        </div>
-
-        <div className="lg:col-span-5 w-full max-w-sm mx-auto">
-          <div className="bg-[#f5f5f1]/[0.03] backdrop-blur-[60px] border border-[#f5f5f1]/10 rounded-[40px] p-10 md:p-12 shadow-2xl relative">
-            <div className="mb-10 flex justify-between items-end">
-                <div>
-                  <h3 className="text-[#f5f5f1] font-serif italic text-3xl font-light">S'inscrire</h3>
-                  <p className="text-[#c5a358]/50 font-mono text-[7px] tracking-[0.5em] uppercase mt-2">{tempRole || formData.role}</p>
-                </div>
-                <span className="text-[#f5f5f1]/5 font-serif italic text-7xl select-none leading-none">0{step}</span>
-            </div>
-
-            <AnimatePresence mode="wait">
-              {step === 1 && (
-                <EtapeRole 
-                  key="s1" 
-                  setRole={(r) => updateData({ role: r })} 
-                  setTempRole={setTempRole} 
-                  onNext={() => setStep(2)} 
-                />
-              )}
-              
-              {step === 2 && (
-                <EtapeIdentite 
-                  key="s2" 
-                  currentData={formData}
-                  onNext={(data) => { updateData(data); setStep(3); }} 
-                  onBack={() => setStep(1)} 
-                />
-              )}
-              
-              {step === 3 && (
-                <EtapePhoto 
-                  key="s3" 
-                  onNext={(file) => { updateData({ photo_profil: file }); setStep(4); }} 
-                  onBack={() => setStep(2)} 
-                />
-              )}
-              
-              {step === 4 && (
-                <EtapeSecurite 
-                  key="s4" 
-                  loading={loading}
-                  onSubmit={handleFinalSubmit} 
-                  onBack={() => setStep(3)} 
-                />
-              )}
-            </AnimatePresence>
           </div>
-        </div>
+
+          {/* Panneau de Droite Formulaire */}
+          <div className="lg:col-span-5 w-full max-w-sm mx-auto">
+            <div className="bg-[#f5f5f1]/[0.03] backdrop-blur-[60px] border border-[#f5f5f1]/10 rounded-[40px] p-10 md:p-12 shadow-2xl relative">
+              <div className="mb-10 flex justify-between items-end">
+                  <div>
+                    <h3 className="text-[#f5f5f1] font-serif italic text-3xl font-light">S'inscrire</h3>
+                    <p className="text-[#c5a358]/50 font-mono text-[7px] tracking-[0.5em] uppercase mt-2">{tempRole || formData.role}</p>
+                  </div>
+                  <span className="text-[#f5f5f1]/5 font-serif italic text-7xl select-none leading-none">0{step}</span>
+              </div>
+
+              <AnimatePresence mode="wait">
+                {step === 1 && (
+                  <EtapeRole key="s1" setRole={(r) => updateData({ role: r })} setTempRole={setTempRole} onNext={() => setStep(2)} />
+                )}
+                {step === 2 && (
+                  <EtapeIdentite key="s2" currentData={formData} onNext={(data) => { updateData(data); setStep(3); }} onBack={() => setStep(1)} />
+                )}
+                {step === 3 && (
+                  <EtapePhoto key="s3" onNext={(file) => { updateData({ photo_profil: file }); setStep(4); }} onBack={() => setStep(2)} />
+                )}
+                {step === 4 && (
+                  <EtapeSecurite 
+                    key="s4" 
+                    role={formData.role} 
+                    loading={loading} 
+                    onSubmit={(passwordFields) => {
+                      // Déclenche instantanément la soumission globale
+                      handleFinalSubmit(passwordFields);
+                    }} 
+                    onBack={() => setStep(3)} 
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </motion.div>
       </div>
     </section>
   );

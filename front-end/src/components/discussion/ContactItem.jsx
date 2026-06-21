@@ -2,7 +2,10 @@
 import { motion } from 'framer-motion';
 
 const ContactItem = ({ item, activeConversation, onSelect }) => {
-  const isSelected = activeConversation?.id === item.id && item.id !== null;
+  const isSelected = activeConversation 
+    ? (item.id && activeConversation.id === item.id) || 
+      (item.is_global_user && activeConversation.utilisateur_id === item.utilisateur_id)
+    : false;
   
   const displayNom = item.is_global_user ? item.nom_complet : (item.photographe_nom || item.client_nom);
   const displayPhoto = item.is_global_user ? item.photo_profil : (item.photographe_photo || item.client_photo);

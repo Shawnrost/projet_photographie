@@ -6,9 +6,12 @@ const BarreFiltres = ({
 }) => {
 
   const TYPES_DISPONIBLES = [
-    { id: 'vente', nom: 'Vente' },
-    { id: 'publicite', nom: 'Publicité' }
+    { id: 'publicite', nom: 'Publicité' },
+    { id: 'vente', nom: 'Vente' }
   ];
+
+  // Vérifier si un filtre est actif
+  const isFilterActive = filtreCat !== '' || filtreType !== 'publicite';
 
   return (
     <motion.div
@@ -24,13 +27,23 @@ const BarreFiltres = ({
         </p>
         <h1 className="text-[#f8f9f8] font-serif italic text-4xl md:text-5xl font-light tracking-tight flex items-baseline gap-4">
           Publications
+          {filtreType === 'publicite' && (
+            <span className="text-[#aec3b0] text-sm font-mono tracking-wider uppercase bg-[#aec3b0]/10 px-3 py-1 rounded-full">
+              Publicités
+            </span>
+          )}
+          {filtreType === 'vente' && (
+            <span className="text-[#aec3b0] text-sm font-mono tracking-wider uppercase bg-[#aec3b0]/10 px-3 py-1 rounded-full">
+              En vente
+            </span>
+          )}
         </h1>
       </div>
 
       {/* Zone des Filtres Épurée */}
       <div className="flex flex-col gap-4 w-full xl:max-w-3xl xl:items-end">
         
-        {/* Sélection des Types — Nouvelle police Serif Italique / Sophistiquée */}
+        {/* Sélection des Types */}
         <div className="flex flex-wrap gap-2">
           {TYPES_DISPONIBLES.map((t) => (
             <button
@@ -47,7 +60,7 @@ const BarreFiltres = ({
           ))}
         </div>
 
-        {/* Sélection des Catégories dynamiques — Nouvelle police Serif Italique */}
+        {/* Sélection des Catégories dynamiques */}
         {categories.length > 0 && (
           <div className="flex flex-wrap gap-2 xl:justify-end">
             <button
@@ -69,14 +82,14 @@ const BarreFiltres = ({
                   filtreCat === c.id 
                     ? 'bg-[#aec3b0] text-[#1e2520] font-bold border-[#aec3b0] shadow-sm' 
                     : 'bg-white/[0.04] text-white/80 border-white/10 hover:text-white hover:bg-white/[0.09]'
-              }`}
+                }`}
               >
                 {c.nom}
               </button>
             ))}
 
             {/* Bouton Reset */}
-            {(filtreCat || filtreType !== 'vente') && (
+            {isFilterActive && (
               <button 
                 onClick={onReset}
                 style={{ borderColor: theme.accentSage, color: theme.accentSage }}
@@ -88,6 +101,13 @@ const BarreFiltres = ({
           </div>
         )}
 
+        {/* Indicateur de filtre actif */}
+        {isFilterActive && (
+          <p className="text-[#aec3b0]/50 text-[9px] font-mono tracking-wider uppercase">
+            {filtreType === 'publicite' ? 'Publicités ' : 'En vente '}
+            {filtreCat && `• ${categories.find(c => c.id === filtreCat)?.nom || ''}`}
+          </p>
+        )}
       </div>
     </motion.div>
   );

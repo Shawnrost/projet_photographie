@@ -41,7 +41,9 @@ const CartePublication = ({ pub, idx, liked, onLike, onClick, theme }) => {
         {/* Badges d'état de la vente plus petits */}
         {pub.type === 'vente' && !pub.est_vendue && pub.prix && (
           <div style={{ backgroundColor: theme.bg, borderColor: 'rgba(255,255,255,0.15)' }} className="absolute top-2.5 left-2.5 px-2 py-0.5 border backdrop-blur-md rounded-md">
-            <span style={{ color: theme.accentSage }} className="text-[9px] font-mono font-medium tracking-wide">{pub.prix} €</span>
+            <span style={{ color: theme.accentSage }} className="text-[9px] font-mono font-medium tracking-wide">
+              {parseFloat(pub.prix).toFixed(2)} €
+            </span>
           </div>
         )}
         {pub.est_vendue && (
@@ -55,7 +57,9 @@ const CartePublication = ({ pub, idx, liked, onLike, onClick, theme }) => {
       <div className="flex items-center justify-between px-3 py-2 bg-black/[0.1] border-t border-white/[0.05]">
         <div className="flex items-center gap-1.5 min-w-0">
           {pub.photographe_photo ? (
-            <img src={pub.photographe_photo} alt={pub.photographe_nom}
+            <img 
+              src={pub.photographe_photo} 
+              alt={pub.photographe_nom}
               className="w-4 h-4 rounded-full object-cover border border-white/10 flex-shrink-0"
             />
           ) : (
@@ -69,10 +73,17 @@ const CartePublication = ({ pub, idx, liked, onLike, onClick, theme }) => {
         </div>
 
         {/* Bouton Mention J'aime discret */}
-        <button onClick={e => onLike(pub.id, e)} className="flex items-center gap-1 flex-shrink-0 group/like">
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            onLike(pub.id, e);
+          }} 
+          className="flex items-center gap-1 flex-shrink-0 group/like transition-all hover:scale-105"
+        >
           <motion.span
             key={liked ? 'on' : 'off'}
-            initial={{ scale: 0.85 }} animate={{ scale: 1 }}
+            initial={{ scale: 0.85 }} 
+            animate={{ scale: 1 }}
             style={{ color: liked ? theme.accentSage : 'inherit' }}
             className={`text-[11px] transition-colors ${!liked && 'text-white/30 group-hover/like:text-white/60'}`}
           >

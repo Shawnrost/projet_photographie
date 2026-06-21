@@ -17,7 +17,6 @@ const ContactList = ({
         <h1 className="font-serif italic text-2xl md:text-4xl tracking-wide text-white mt-1">Correspondances</h1>
       </div>
 
-      {/* Barre de Recherche Automatique */}
       <div className="relative w-full mb-6">
         <input 
           type="text"
@@ -37,13 +36,12 @@ const ContactList = ({
         </div>
       </div>
 
-      {/* Liste des contacts */}
       <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
         <AnimatePresence>
           {displayList.length > 0 ? (
             displayList.map((item) => (
               <ContactItem 
-                key={item.id || item.utilisateur_id}
+                key={item.id || `global-${item.utilisateur_id}`}
                 item={item}
                 activeConversation={activeConversation}
                 onSelect={onSelectConversation}

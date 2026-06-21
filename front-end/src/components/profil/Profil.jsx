@@ -60,6 +60,11 @@ const Profil = () => {
     fetchUserData();
   }, [navigate]);
 
+  // Détection du rôle de l'utilisateur pour adapter l'affichage
+  const userObj = user?.user || user;
+  const rawRole = userObj?.role || userObj?.is_superuser || userObj?.type;
+  const isAdmin = rawRole === 'admin' || rawRole === true || rawRole === 'administrator';
+
   const handlePhotoClick = () => {
     if (isEditing && fileInputRef.current) {
       fileInputRef.current.click();
@@ -112,16 +117,22 @@ const Profil = () => {
     ? `${user.prenom[0]}${user.nom[0]}`.toUpperCase() 
     : "OR";
 
-  const MENU_ITEMS = [
+  // Liste complète des onglets de base
+  const ALL_MENU_ITEMS = [
     { id: 'information', label: 'Information', icon: 'M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z' },
     { id: 'collection', label: 'Collection', icon: 'M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z' },
     { id: 'performances', label: 'Performances', icon: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z' },
   ];
 
+  // Filtrage intelligent : si admin, on garde uniquement 'information'
+  const MENU_ITEMS = isAdmin 
+    ? ALL_MENU_ITEMS.filter(item => item.id === 'information')
+    : ALL_MENU_ITEMS;
+
   return (
     <section className="w-screen h-screen bg-[#2d3a30] text-[#2d3a30] font-sans overflow-hidden flex flex-col md:flex-row relative">
       
-      {/* 1. PANNEAU DE GAUCHE : AJUSTÉ POUR FAIRE DESCENDRE LES ÉLÉMENTS (pt-20 md:pt-36) */}
+      {/* 1. PANNEAU DE GAUCHE */}
       <div className="w-full md:w-2/5 h-auto md:h-full p-8 md:p-12 pt-20 md:pt-36 flex flex-col items-center md:items-start relative z-10 border-b md:border-b-0 md:border-r border-white/10">
         
         {/* Profil Header */}
@@ -135,14 +146,16 @@ const Profil = () => {
           </div>
 
           <div className="text-center md:text-left">
-            <p className="font-mono text-[8px] tracking-[0.4em] text-[#aec3b0] uppercase italic">Artiste Résident</p>
+            <p className="font-mono text-[8px] tracking-[0.4em] text-[#aec3b0] uppercase italic">
+              {isAdmin ? 'Administrateur' : 'Artiste Résident'}
+            </p>
             <h1 className="font-serif italic text-2xl md:text-4xl tracking-wide text-white leading-tight">
               {user?.prenom || formData.prenom} {user?.nom || formData.nom}
             </h1>
           </div>
         </div>
 
-        {/* MENU DE NAVIGATION VERTICAL */}
+        {/* MENU DE NAVIGATION VERTICAL FILTRÉ */}
         <nav className="w-full space-y-2 mb-auto">
           {MENU_ITEMS.map((item) => {
             const isActive = activeTab === item.id;
@@ -170,7 +183,7 @@ const Profil = () => {
         </div>
       </div>
 
-      {/* 2. PANNEAU DE DROITE : AJUSTÉ POUR FAIRE MONTER LE TITRE ET LE CONTENU (pt-16 md:pt-14) */}
+      {/* 2. PANNEAU DE DROITE */}
       <div className="w-full md:w-3/5 h-full bg-[#f8f9f8] p-6 md:p-12 pt-16 md:pt-14 relative z-10 overflow-y-auto custom-scrollbar">
         
         <AnimatePresence mode="wait">

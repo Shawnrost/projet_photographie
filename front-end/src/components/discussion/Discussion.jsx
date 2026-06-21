@@ -17,7 +17,7 @@ const Discussion = () => {
   const [messages, setMessages] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
 
-  // 1. Extraction de l'ID de l'utilisateur connecté (JWT)
+  // 1. Extraction de l'ID utilisateur (JWT)
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (!token) {
@@ -53,12 +53,23 @@ const Discussion = () => {
           'Content-Type': 'application/json'
         }
       });
+      
       const result = await response.json();
-      if (result.success) {
+      
+      // Gestion des différentes structures de réponse
+      if (result.success && Array.isArray(result.data)) {
         setConversations(result.data);
+      } else if (Array.isArray(result)) {
+        setConversations(result);
+      } else if (result.results && Array.isArray(result.results)) {
+        // Si la réponse est paginée
+        setConversations(result.results);
+      } else {
+        setConversations([]);
       }
     } catch (error) {
       console.error("Erreur lors de la récupération des conversations:", error);
+      setConversations([]);
     } finally {
       setLoading(false);
     }
@@ -69,9 +80,9 @@ const Discussion = () => {
     fetchConversations();
   }, []);
 
-  // 3. Debounce pour la recherche globale d'utilisateurs
+  // 3. Recherche globale d'utilisateurs (Debounce)
   useEffect(() => {
-    if (!searchContactQuery.trim()) {
+    if (!searchContactQuery.trim() || searchContactQuery.trim().length < 2) {
       setSearchResults([]);
       return;
     }
@@ -81,26 +92,35 @@ const Discussion = () => {
       const token = localStorage.getItem('access_token');
       
       try {
-        const response = await fetch(`http://localhost:8000/api/users/?search=${searchContactQuery}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const response = await fetch(`http://localhost:8000/api/auth/recherche/?q=${encodeURIComponent(searchContactQuery)}`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
-        const data = await response.json();
         
-        const usersList = Array.isArray(data) ? data : (data.results || data.data || []);
-        const filteredUsers = usersList.filter(user => user.id !== currentUserId);
+        const result = await response.json();
+        
+        if (result.success && Array.isArray(result.data)) {
+          const filteredUsers = result.data.filter(user => user.id !== currentUserId);
 
-        const formattedResults = filteredUsers.map(user => ({
-          id: null,
-          utilisateur_id: user.id,
-          nom_complet: `${user.prenom || ''} ${user.nom || ''}`.trim() || user.email,
-          photo_profil: user.photo_profil,
-          role: user.role,
-          is_global_user: true
-        }));
+          const formattedResults = filteredUsers.map(user => ({
+            id: null, 
+            utilisateur_id: user.id,
+            photographe_id: user.id, // Assure-toi que c'est bien l'UUID du photographe
+            nom_complet: `${user.prenom || ''} ${user.nom || ''}`.trim(),
+            photo_profil: user.photo_profil,
+            role: user.role,
+            is_global_user: true
+          }));
 
-        setSearchResults(formattedResults);
+          setSearchResults(formattedResults);
+        } else {
+          setSearchResults([]);
+        }
       } catch (error) {
         console.error("Erreur lors de la recherche globale des utilisateurs:", error);
+        setSearchResults([]);
       } finally {
         setIsSearchingGlobal(false);
       }
@@ -109,41 +129,24 @@ const Discussion = () => {
     return () => clearTimeout(delayDebounceFn);
   }, [searchContactQuery, currentUserId]);
 
-  // 4. Sélection ou création dynamique de salon
-  const handleSelectConversation = async (target) => {
-    const token = localStorage.getItem('access_token');
-    
+  // 4. Sélection d'une cible (Salon existant ou Profil global)
+  const handleSelectConversation = (target) => {
+    // On ferme le WebSocket actuel s'il y en a un ouvert
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
     if (target.is_global_user) {
-      try {
-        setLoading(true);
-        const response = await fetch('http://localhost:8000/api/conversations/', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            photographe_id: target.utilisateur_id,
-            message_initial: "Discussion initiée."
-          })
-        });
-        const result = await response.json();
-        if (result.success || result.id) {
-          await fetchConversations();
-          setActiveConversation(result.data || result);
-          setSearchContactQuery(""); 
-        }
-      } catch (error) {
-        console.error("Impossible d'initier la conversation avec cet utilisateur:", error);
-      } finally {
-        setLoading(false);
-      }
+      // On bascule sur l'interface à blanc sans appeler l'API de suite
+      setActiveConversation(target);
+      setMessages([]);
     } else {
       setActiveConversation(target);
     }
   };
 
-  // 5. Gestion de l'historique API et liaison du WebSocket en temps réel
+  // 5. Gestionnaire d'historique et connexion WS pour salons existants
   useEffect(() => {
     if (!activeConversation || !activeConversation.id) return;
 
@@ -154,12 +157,23 @@ const Discussion = () => {
         const response = await fetch(`http://localhost:8000/api/conversations/${activeConversation.id}/`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        
         const result = await response.json();
-        if (result.success) {
-          setMessages(result.data.reverse());
+        
+        // Gestion des différentes structures de réponse
+        let messagesData = [];
+        if (result.success && Array.isArray(result.data)) {
+          messagesData = result.data;
+        } else if (Array.isArray(result)) {
+          messagesData = result;
+        } else if (result.results && Array.isArray(result.results)) {
+          messagesData = result.results;
         }
+        
+        setMessages([...messagesData].reverse());
       } catch (error) {
         console.error("Erreur lors du chargement de l'historique:", error);
+        setMessages([]);
       }
     };
 
@@ -169,28 +183,114 @@ const Discussion = () => {
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "message") {
-        setMessages((prev) => [...prev, data.message]);
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "message") {
+          setMessages((prev) => [...prev, data.message]);
+        }
+      } catch (error) {
+        console.error("Erreur de parsing WebSocket:", error);
       }
     };
 
+    wsRef.current.onerror = (error) => {
+      console.error("Erreur WebSocket:", error);
+    };
+
     return () => {
-      if (wsRef.current) wsRef.current.close();
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
   }, [activeConversation]);
 
-  // 6. Gestionnaire d'envoi de message via le WebSocket
-  const handleSendMessage = (textContenu) => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+  // 6. Gestionnaire d'envoi dynamique (POST d'initialisation OU WebSocket)
+  const handleSendMessage = async (textContenu) => {
+    const token = localStorage.getItem('access_token');
 
-    wsRef.current.send(JSON.stringify({
-      type: "message",
-      contenu: textContenu
-    }));
+    // Cas A : Premier message d'un salon non créé (is_global_user)
+    if (activeConversation?.is_global_user && !activeConversation.id) {
+      console.log("Création d'une nouvelle conversation avec:", activeConversation);
+      
+      // CORRECTION : S'assurer que photographe_id est bien un UUID valide
+      const photographeId = activeConversation.photographe_id || activeConversation.utilisateur_id;
+      
+      if (!photographeId) {
+        console.error("Aucun photographe_id trouvé pour créer la conversation");
+        return;
+      }
+
+      try {
+        // CORRECTION : Structure du payload conforme au serializer
+        const payload = {
+          photographe_id: photographeId,
+          message_initial: textContenu
+        };
+        
+        console.log("Payload envoyé:", payload);
+
+        const response = await fetch('http://localhost:8000/api/conversations/', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        console.log("Status de la réponse:", response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Erreur HTTP:", response.status, errorText);
+          return;
+        }
+
+        const result = await response.json();
+        console.log("Réponse complète:", result);
+
+        // Gestion des différentes structures de réponse
+        let conversationData = null;
+        
+        if (result.success && result.data) {
+          conversationData = result.data;
+        } else if (result.data) {
+          conversationData = result.data;
+        } else if (result.id) {
+          conversationData = result;
+        }
+
+        if (conversationData) {
+          // On recharge la liste latérale
+          await fetchConversations();
+          // On bascule sur la vraie structure de conversation reçue de la DB
+          setActiveConversation(conversationData);
+          setSearchContactQuery("");
+        } else {
+          console.error("Format de réponse POST inattendu:", result);
+        }
+      } catch (error) {
+        console.error("Erreur lors de l'envoi du message initial (POST):", error);
+      }
+    } 
+    // Cas B : Envoi classique sur salon actif existant
+    else if (activeConversation?.id) {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: "message",
+          contenu: textContenu
+        }));
+      } else {
+        console.warn("WebSocket non ouvert, tentative de reconnexion...");
+        // Tu pourrais ajouter une logique de reconnexion ici
+      }
+    } else {
+      console.warn("Aucune conversation active ou cible sélectionnée");
+    }
   };
 
-  // Fusion & Filtrage unifié de la liste des contacts
+  // Filtrage local
   const filteredConversationsLocal = conversations.filter((conv) => {
     const targetName = `${conv.photographe_nom || ''} ${conv.client_nom || ''}`.toLowerCase();
     return targetName.includes(searchContactQuery.toLowerCase());
@@ -214,7 +314,6 @@ const Discussion = () => {
 
   return (
     <section className="w-screen h-screen bg-[#2d3a30] text-[#2d3a30] font-sans overflow-hidden flex flex-col md:flex-row relative">
-      {/* Panneau gauche : Contacts et recherche */}
       <ContactList 
         searchQuery={searchContactQuery}
         setSearchQuery={setSearchContactQuery}
@@ -223,8 +322,6 @@ const Discussion = () => {
         activeConversation={activeConversation}
         onSelectConversation={handleSelectConversation}
       />
-
-      {/* Panneau droit : Fenêtre de discussion et flux WebSocket */}
       <ChatWindow 
         activeConversation={activeConversation}
         messages={messages}

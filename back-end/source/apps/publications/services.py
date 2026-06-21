@@ -72,6 +72,7 @@ class PublicationService:
         # Extraire l'image avant la sauvegarde pour générer le filigrane
         image_originale = serializer.validated_data.get("image_originale")
 
+        # print("VALIDATED DATA:", serializer.validated_data)
         publication = serializer.save(photographe=photographe_profil)
 
         # Générer et sauvegarder le filigrane

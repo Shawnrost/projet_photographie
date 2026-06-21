@@ -9,12 +9,11 @@ const BG_IMAGES = [
   "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?q=80&w=2000"
 ];
 
-const Connexion = () => {
+const Connexion = ({ setUser }) => {
   const [focusInput, setFocusInput] = useState(null);
   const [bgIndex, setBgIndex] = useState(0);
   const navigate = useNavigate();
 
-  // NOUVEAUX ÉTATS POUR L'API ET L'ANIMATION
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,7 +25,6 @@ const Connexion = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // GESTION DU SUBMIT AVEC L'API DU DOSSIER BACKEND
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -38,23 +36,54 @@ const Connexion = () => {
         password: password
       });
 
-      if (response.data.success) {
-        const { access, refresh } = response.data.data;
+      if (response.data && response.data.success) {
         
-        // Stockage des tokens pour rester identifié
-        localStorage.setItem('access_token', access);
-        localStorage.setItem('refresh_token', refresh);
+        const tokenData = response.data.data || response.data;
+        const access = tokenData.access;
+        const refresh = tokenData.refresh;
+        
+        if (access) localStorage.setItem('access_token', access);
+        if (refresh) localStorage.setItem('refresh_token', refresh);
 
-        // Déclenchement de la transition visuelle de succès
+        // ConnexionView Django retourne : { success, data: { access, refresh, utilisateur: {...} } }
+        // La clé est "utilisateur" — pas "user"
+        const incomingUser = tokenData.utilisateur
+          || response.data.utilisateur
+          || tokenData.user
+          || response.data.user
+          || {};
+
+        // Construction du profil avec les champs exacts du modèle Utilisateur Django
+        const userProfile = {
+          prenom: incomingUser.prenom || "",
+          nom: incomingUser.nom || "",
+          email: incomingUser.email || email,
+          role: incomingUser.role || "user",
+          photo_profil: incomingUser.photo_profil || null,
+          id: incomingUser.id || null,
+        };
+
+        // Sauvegarde locale
+        localStorage.setItem('user_profile', JSON.stringify(userProfile));
+
+        // Mise à jour du state global dans App.jsx via le handler centralisé
+        if (typeof setUser === 'function') {
+          setUser(userProfile);
+        }
+
         setShowSuccess(true);
 
         setTimeout(() => {
-          navigate('/accueil'); // Redirection vers ton Accueil.jsx
+          navigate('/accueil');
         }, 2200);
+
+      } else {
+        setApiError("Structure de validation du serveur incorrecte.");
       }
+
     } catch (error) {
+      console.error("Erreur de connexion:", error);
       if (error.response && error.response.data) {
-        // Capture des erreurs de validation ou du message d'identifiants incorrects
         setApiError(error.response.data.message || "Identifiants invalides ou introuvables.");
       } else {
         setApiError("Liaison avec le serveur Fine Art interrompue.");
@@ -67,7 +96,7 @@ const Connexion = () => {
   return (
     <section className="relative w-screen h-screen bg-charcoal overflow-hidden flex items-center justify-center font-sans">
       
-      {/* --- ÉCRAN DE SUCCÈS OVERLAY ULTRA STYLÉ (Style Galerie) --- */}
+      {/* ÉCRAN DE SUCCÈS OVERLAY */}
       <AnimatePresence>
         {showSuccess && (
           <motion.div 
@@ -113,7 +142,7 @@ const Connexion = () => {
         )}
       </AnimatePresence>
 
-      {/* 1. DIAPORAMA D'ARRIÈRE-PLAN */}
+      {/* DIAPORAMA D'ARRIÈRE-PLAN */}
       <div className="absolute inset-0 z-0">
         <AnimatePresence mode="wait">
           <motion.img 
@@ -129,7 +158,7 @@ const Connexion = () => {
         <div className="absolute inset-0 bg-gradient-to-tr from-charcoal via-charcoal/90 to-transparent" />
       </div>
 
-      {/* 2. WIDGETS DÉCORATIFS */}
+      {/* WIDGETS DÉCORATIFS */}
       <div className="absolute inset-0 pointer-events-none">
         <motion.div 
           initial={{ y: -50, opacity: 0 }} animate={{ y: 30, opacity: 1 }}
@@ -151,7 +180,7 @@ const Connexion = () => {
         </motion.div>
       </div>
 
-      {/* 3. GRILLE PRINCIPALE */}
+      {/* GRILLE PRINCIPALE */}
       <div className="relative z-10 w-full max-w-[1300px] px-12 grid grid-cols-1 lg:grid-cols-12 gap-20 items-center">
         
         {/* TEXTE ÉDITORIAL */}
@@ -183,7 +212,7 @@ const Connexion = () => {
           </div>
         </motion.div>
 
-        {/* 4. FORMULAIRE */}
+        {/* FORMULAIRE */}
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -231,7 +260,6 @@ const Connexion = () => {
                 <motion.div className="absolute bottom-0 left-0 h-[1px] bg-gold" animate={{ width: focusInput === 'pw' ? '100%' : 0 }} />
               </div>
 
-              {/* --- MESSAGE D'ERREUR ANIMÉ DISCRET ET STYLÉ --- */}
               <AnimatePresence>
                 {apiError && (
                   <motion.div 
@@ -259,7 +287,6 @@ const Connexion = () => {
               </motion.button>
             </form>
 
-            {/* ZONE BAS DE CARTE ÉPURÉE */}
             <div className="mt-16 flex flex-col items-center gap-8">
               <button 
                 onClick={() => navigate('/inscription')}
