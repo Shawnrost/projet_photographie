@@ -48,7 +48,7 @@ const CommandeCard = ({ commande, index, theme }) => {
         </div>
         <div className="text-right">
           <p style={{ color: theme.accentSage }} className="font-serif italic text-lg font-light">
-            {parseFloat(commande.prix_a_payer).toFixed(2)} €
+            {parseFloat(commande.prix_a_payer).toFixed(2)} Ar
           </p>
           <span className="text-[#2d3a30]/20 text-[9px] font-mono tracking-wider">
             {commande.articles?.length || 0} article(s)
@@ -73,7 +73,7 @@ const CommandeCard = ({ commande, index, theme }) => {
                 </p>
               </div>
               <p className="text-[#2d3a30]/40 text-xs font-mono tabular-nums">
-                {parseFloat(article.prix_unitaire).toFixed(2)} €
+                {parseFloat(article.prix_unitaire).toFixed(2)} Ar
               </p>
             </div>
           ))}

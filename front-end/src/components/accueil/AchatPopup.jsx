@@ -176,7 +176,7 @@ const AchatPopup = ({ pub, onClose, theme }) => {
                 {pub.photographe_nom}
               </p>
               <p style={{ color: theme.accentSage }} className="text-lg font-serif italic font-light mt-1">
-                {parseFloat(pub.prix).toFixed(2)} €
+                {parseFloat(pub.prix).toFixed(2)} Ar
               </p>
             </div>
           </div>
@@ -252,7 +252,7 @@ const AchatPopup = ({ pub, onClose, theme }) => {
                   <div className="flex justify-between text-sm">
                     <span className="text-white/40">Total à payer</span>
                     <span style={{ color: theme.accentSage }} className="font-serif italic text-xl font-light">
-                      {panierInfo?.prix_a_payer || pub.prix} €
+                      {panierInfo?.prix_a_payer || pub.prix} Ar
                     </span>
                   </div>
                   <div className="mt-2 text-white/30 text-[10px] font-mono tracking-wider">

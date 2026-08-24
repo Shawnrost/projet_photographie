@@ -42,7 +42,7 @@ const Profil = () => {
             prenom: data.prenom || "Ofélia",
             nom: data.nom || "R.",
             email: data.email || "ofelia@e-sary.com",
-            bio: data.bio || "Artiste plasticienne et photographe explorant les textures de la lumière. Fondatrice de l'espace e.Sary."
+            bio: data.bio || "Artiste plasticienne et photographe explorant les textures de la lumière. Fondatrice de l'espace Gasy Ant'sary."
           });
 
           if (data.photos) {
@@ -98,7 +98,7 @@ const Profil = () => {
         prenom: user.prenom || "Ofélia",
         nom: user.nom || "R.",
         email: user.email || "ofelia@e-sary.com",
-        bio: user.bio || "Artiste plasticienne et photographe explorant les textures de la lumière. Fondatrice de l'espace e.Sary."
+        bio: user.bio || "Artiste plasticienne et photographe explorant les textures de la lumière. Fondatrice de l'espace Gasy Ant'sary."
       });
     }
     setIsEditing(false);
@@ -179,7 +179,7 @@ const Profil = () => {
         </nav>
 
         <div className="hidden md:block w-full pt-6 font-mono text-[9px] tracking-wider uppercase text-white/30 border-t border-white/5">
-          <p>e.Sary Studio © 2026</p>
+          <p>Gasy Ant'sary Studio © 2026</p>
         </div>
       </div>
 

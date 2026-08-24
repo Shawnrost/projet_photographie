@@ -32,7 +32,7 @@ const ArticleItem = ({ article, index, onRetirer, theme }) => {
 
       <div className="text-right flex-shrink-0">
         <p style={{ color: theme.accentSage }} className="font-serif italic text-lg font-light">
-          {parseFloat(article.prix_unitaire).toFixed(2)} €
+          {parseFloat(article.prix_unitaire).toFixed(2)} Ar
         </p>
         {onRetirer && (
           <button

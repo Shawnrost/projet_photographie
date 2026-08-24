@@ -53,7 +53,7 @@ const CarteOeuvre = ({ item, onOpenPopup }) => {
         {/* Badge prix */}
         {item.type === 'vente' && item.prix && !item.est_vendue && (
           <span className="absolute bottom-3 right-3 bg-[#2d3a30]/90 backdrop-blur-md text-white font-mono text-[9px] font-medium px-2 py-1 rounded-md">
-            {parseFloat(item.prix).toFixed(2)} €
+            {parseFloat(item.prix).toFixed(2)} Ar
           </span>
         )}
 

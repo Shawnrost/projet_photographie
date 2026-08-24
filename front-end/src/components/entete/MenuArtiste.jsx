@@ -59,6 +59,13 @@ const IC = {
       <path d="M15 15h2" stroke="currentColor" strokeLinecap="round"/>
     </svg>
   ),
+  card: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="4" width="22" height="16" rx="2"/>
+      <line x1="1" y1="10" x2="23" y2="10"/>
+      <path d="M5 15h4" strokeLinecap="round"/>
+    </svg>
+  ),
   logout: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
@@ -272,15 +279,17 @@ const MenuArtiste = ({ user, initiales, onLogout, onClose, isAdmin }) => {
 
   const actions = isAdmin
     ? [
-        { label: 'Tableau de bord', href: '/admin/dashboard', svgIcon: IC.dashboard, desc: 'Vue d\'ensemble' },
-        { label: 'Mon profil',      href: '/profil',          svgIcon: IC.profile,   desc: 'Gérer mon compte' },
-        { label: 'Mes commandes',   href: '/commandes',       svgIcon: IC.commandes, desc: 'Panier & historique' },
-        { label: 'Statistiques',    href: '/admin/stats',     svgIcon: IC.stats,     desc: 'Analyses détaillées' },
-        { label: 'Paramètres',      href: '/parametres',      svgIcon: IC.settings,  desc: 'Configuration' },
+        { label: 'Tableau de bord', href: '/admin/dashboard',   svgIcon: IC.dashboard, desc: 'Vue d\'ensemble' },
+        { label: 'Mon profil',      href: '/profil',            svgIcon: IC.profile,   desc: 'Gérer mon compte' },
+        { label: 'Abonnements',     href: '/admin/abonnements', svgIcon: IC.card,      desc: 'Gestion des formules' },
+        { label: 'Mes commandes',   href: '/commandes',         svgIcon: IC.commandes, desc: 'Panier & historique' },
+        { label: 'Statistiques',    href: '/admin/stats',       svgIcon: IC.stats,     desc: 'Analyses détaillées' },
+        { label: 'Paramètres',      href: '/parametres',        svgIcon: IC.settings,  desc: 'Configuration' },
       ]
     : [
         { label: 'Profil artiste', href: '/profil',      svgIcon: IC.palette,   desc: 'Mon espace créatif' },
         { label: 'Mes œuvres',     href: '/mes-oeuvres', svgIcon: IC.gallery,   desc: 'Collection personnelle' },
+        { label: 'Mon abonnement', href: '/abonnement',  svgIcon: IC.card,      desc: 'Ma formule en cours' },
         { label: 'Mes commandes',  href: '/commandes',   svgIcon: IC.commandes, desc: 'Panier & historique' },
         { label: 'Paramètres',     href: '/parametres',  svgIcon: IC.settings,  desc: 'Préférences' },
       ];

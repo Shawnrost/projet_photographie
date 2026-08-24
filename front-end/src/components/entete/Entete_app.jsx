@@ -665,7 +665,8 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
     location.pathname === '/profil'            ||
     location.pathname === '/recherche'         ||
     location.pathname === '/discussion'        ||
-    location.pathname === '/commandes';
+    location.pathname === '/commandes'         ||
+    location.pathname === '/abonnement';
   // '/admin/abonnements' n'est PAS en mode compact pour avoir la même taille que l'accueil
 
   const getInitiales = useCallback(() => {

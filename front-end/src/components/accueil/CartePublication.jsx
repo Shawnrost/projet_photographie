@@ -42,7 +42,7 @@ const CartePublication = ({ pub, idx, liked, onLike, onClick, theme }) => {
         {pub.type === 'vente' && !pub.est_vendue && pub.prix && (
           <div style={{ backgroundColor: theme.bg, borderColor: 'rgba(255,255,255,0.15)' }} className="absolute top-2.5 left-2.5 px-2 py-0.5 border backdrop-blur-md rounded-md">
             <span style={{ color: theme.accentSage }} className="text-[9px] font-mono font-medium tracking-wide">
-              {parseFloat(pub.prix).toFixed(2)} €
+              {parseFloat(pub.prix).toFixed(2)} Ar
             </span>
           </div>
         )}

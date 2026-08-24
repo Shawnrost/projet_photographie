@@ -161,12 +161,12 @@ const EtapeTarifInscription = ({ onSuivant, onBack }) => {
             </p>
             
             <div className="mt-4 flex items-baseline text-[#f5f5f1]">
-              <span className="text-4xl font-serif font-light italic">0.00€</span>
+              <span className="text-4xl font-serif font-light italic">0.00Ar</span>
               <span className="text-[#f5f5f1]/30 text-[9px] tracking-widest uppercase ml-2 font-mono">/ 1 mois unique</span>
             </div>
 
             <p className="text-[#f5f5f1]/50 text-[11px] font-light leading-relaxed tracking-wide mt-4">
-              Testez l'intégralité de l'expérience e.Sary Studio Premium. <strong className="text-[#c5a358] font-normal">Valable strictement pendant 30 jours</strong>, sans engagement, pour propulser votre art.
+              Testez l'intégralité de l'expérience Gasy Ant'sary Studio Premium. <strong className="text-[#c5a358] font-normal">Valable strictement pendant 30 jours</strong>, sans engagement, pour propulser votre art.
             </p>
 
             <div className="h-[1px] bg-[#f5f5f1]/10 my-6" />

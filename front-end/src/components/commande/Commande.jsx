@@ -63,7 +63,7 @@ const Commande = () => {
         style={{ color: CONFIG_THEME.accentSage }}
         className="text-3xl mb-4 font-serif italic"
       >
-        e.Sary
+        Gasy Ant'sary
       </motion.div>
       CHARGEMENT DE VOTRE ESPACE...
     </div>
@@ -160,7 +160,7 @@ const Commande = () => {
 
         {/* FOOTER DISCRET */}
         <p className="hidden md:block font-mono text-[9px] text-white/20 uppercase tracking-[0.3em] select-none">
-          e.Sary Galerie — Espace Client
+          Gasy Ant'sary Galerie — Espace Client
         </p>
       </div>
 

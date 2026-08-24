@@ -1,9 +1,12 @@
+// C:\Users\ASUS\Desktop\projet_photographie\front-end\src\components\accueil\Accueil.jsx
+
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CartePublication from './CartePublication.jsx';
 import AperçuPublication from './AperçuPublication.jsx';
 import BarreFiltres from './BarreFiltres.jsx';
+import BoutonAssistant from './BoutonAssistant.jsx'; // 👈 Nouveau composant
 import api, { likePublication } from '../../services/api';
 
 const API_BASE = 'http://localhost:8000/api';
@@ -29,7 +32,7 @@ const Accueil = () => {
 
   const [categories, setCategories]         = useState([]);
   const [filtreCat, setFiltreCat]           = useState('');
-  const [filtreType, setFiltreType]         = useState('publicite'); // ← Par défaut : publicité
+  const [filtreType, setFiltreType]         = useState('publicite');
   const [rechercheInput, setRechercheInput] = useState('');
   const [recherche, setRecherche]           = useState('');
 
@@ -141,7 +144,7 @@ const Accueil = () => {
 
   const resetFiltres = () => {
     setFiltreCat('');
-    setFiltreType('publicite'); // ← Reset vers publicité par défaut
+    setFiltreType('publicite');
     setRecherche('');
     setRechercheInput('');
     setPage(1);
@@ -157,7 +160,7 @@ const Accueil = () => {
         style={{ color: CONFIG_THEME.accentSage }}
         className="text-3xl mb-4 font-serif italic"
       >
-        e.Sary
+        Gasy Ant'sary
       </motion.div>
       CHARGEMENT DE LA COLLECTION...
     </div>
@@ -176,6 +179,9 @@ const Accueil = () => {
     <div style={{ backgroundColor: CONFIG_THEME.bg }} className="min-h-screen font-sans text-[#f8f9f8] selection:bg-[#aec3b0]/20 selection:text-white">
       {/* ❌ SUPPRIMEZ CETTE LIGNE */}
       {/* <Entete_app user={user} onLogout={handleLogout} /> */}
+
+      {/* 👇 Bouton Assistant - placé en haut à droite */}
+      <BoutonAssistant theme={CONFIG_THEME} />
 
       <main className="pt-32 pb-24 px-6 md:px-12 lg:px-20 max-w-[1600px] mx-auto">
         

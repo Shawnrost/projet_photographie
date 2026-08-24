@@ -88,7 +88,7 @@ const PanneauRecherche = ({ searchQuery, setSearchQuery, selectedTag, setSelecte
 
       {/* FOOTER DISCRET */}
       <p className="hidden md:block font-mono text-[9px] text-white/20 uppercase tracking-[0.3em] select-none">
-        e.Sary Galerie — Moteur d'indexation
+        Gasy Ant'sary Galerie — Moteur d'indexation
       </p>
     </div>
   );

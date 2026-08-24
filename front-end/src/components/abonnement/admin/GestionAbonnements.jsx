@@ -17,7 +17,7 @@ import {
   creerTarif,
   modifierTarif,
   supprimerTarif
-} from '../../services/abonnementService';
+} from "../../../services/abonnementService";
 
 const CONFIG_THEME = {
   bg: '#2d3a30',
@@ -561,7 +561,7 @@ const GestionAbonnements = () => {
             <div className="h-[1px] w-6 sm:w-12 md:w-16 bg-gradient-to-l from-transparent to-white/10" />
           </div>
           <p className="font-mono text-[6px] sm:text-[7px] md:text-[8px] text-white/20 uppercase tracking-[0.3em] sm:tracking-[0.4em] md:tracking-[0.5em]">
-            e.Sary Studio — Gestion des Abonnements
+            Gasy Ant'sary Studio — Gestion des Abonnements
           </p>
         </motion.div>
       </main>

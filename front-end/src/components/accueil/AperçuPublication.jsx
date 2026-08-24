@@ -107,7 +107,7 @@ const AperçuPublication = ({ pub, liked, onLike, onClose, theme }) => {
                     <div className="flex flex-col">
                       <span className="text-white/40 text-[9px] tracking-widest uppercase mb-0.5">Tirage certifié</span>
                       <span style={{ color: theme.accentSage }} className="font-serif italic text-xl font-light">
-                        {parseFloat(pub.prix).toFixed(2)} €
+                        {parseFloat(pub.prix).toFixed(2)} Ar
                       </span>
                     </div>
                     <button 

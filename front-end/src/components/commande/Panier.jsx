@@ -129,7 +129,7 @@ const Panier = ({ theme }) => {
             Total à payer
           </p>
           <p style={{ color: theme.accentSage }} className="text-2xl font-serif italic font-light mt-1">
-            {parseFloat(panier.prix_a_payer).toFixed(2)} €
+            {parseFloat(panier.prix_a_payer).toFixed(2)} Ar
           </p>
         </div>
         <div className="flex gap-3">
