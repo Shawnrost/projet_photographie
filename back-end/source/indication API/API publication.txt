@@ -425,3 +425,18 @@ interface Reponse {
   contenu: string;
   created_at: string;
 }
+
+API liker Commentaires
+
+Méthode	  URL	Auth	                                    Description
+POST	    /api/publications/commentaires/<uuid>/like/	  🔒 Connecté	Like/Unlike toggle
+uuid de la publication à liker
+
+Reponse du test like
+{
+  "success": true,
+  "data": {
+    "liked": true,
+    "nombre_likes": 5
+  }
+}
