@@ -124,3 +124,59 @@ class Reaction(models.Model):
 
     def __str__(self):
         return f"{self.utilisateur} ❤ {self.publication}"
+
+class Commentaire(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    publication = models.ForeignKey(
+        Publication,
+        on_delete=models.CASCADE,
+        related_name="commentaires"
+    )
+    auteur = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.CASCADE,
+        related_name="commentaires"
+    )
+    contenu = models.TextField()
+    # Réponse à un commentaire parent (None = commentaire racine)
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="reponses"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+ 
+    class Meta:
+        ordering = ["created_at"]
+ 
+    def __str__(self):
+        return f"{self.auteur} → {self.publication} : {self.contenu[:50]}"
+ 
+    @property
+    def est_reponse(self) -> bool:
+        return self.parent is not None
+
+class ReactionCommentaire(models.Model):
+    """Like d'un utilisateur sur un commentaire. Un seul like par utilisateur."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    utilisateur = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.CASCADE,
+        related_name="reactions_commentaires"
+    )
+    commentaire = models.ForeignKey(
+        Commentaire,
+        on_delete=models.CASCADE,
+        related_name="reactions"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+ 
+    class Meta:
+        unique_together = ("utilisateur", "commentaire")
+ 
+    def __str__(self):
+        return f"{self.utilisateur} ❤ commentaire {self.commentaire.id}"
+

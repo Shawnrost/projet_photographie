@@ -11,8 +11,11 @@ from .serializers import (
     PublicationCreateSerializer,
     CategorieSerializer,
     TagSerializer,
+    CommentaireSerializer,
+    CreerCommentaireSerializer,
+
 )
-from .services import PublicationService, ReactionService, CategorieService, TagService
+from .services import PublicationService, ReactionService, CategorieService, TagService, CommentaireService
 from apps.users.permissions import EstPhotographe, EstAdmin
 from apps.core.pagination import PaginationStandard
 
@@ -241,3 +244,99 @@ class TagRechercheView(APIView):
         return Response(
             {"success": True, "data": TagSerializer(tags, many=True).data}
         )
+
+
+# ─────────────────────────────────────────────
+# Commentaires
+# ─────────────────────────────────────────────
+ 
+class CommentaireListView(APIView):
+    """
+    GET  /api/publications/<uuid>/commentaires/   → liste des commentaires
+    POST /api/publications/<uuid>/commentaires/   → ajouter un commentaire ou une réponse
+    """
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [IsAuthenticated()]
+        return [AllowAny()]
+ 
+    def get(self, request, pk):
+        publication  = PublicationService.get_publication_ou_404(pk)
+        commentaires = CommentaireService.lister_commentaires(publication)
+        paginator    = PaginationStandard()
+        page         = paginator.paginate_queryset(commentaires, request)
+        serializer   = CommentaireSerializer(
+            page, many=True, context={"request": request}
+        )
+        return paginator.get_paginated_response(serializer.data)
+ 
+    def post(self, request, pk):
+        publication = PublicationService.get_publication_ou_404(pk)
+        serializer  = CreerCommentaireSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"success": False, "errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            commentaire = CommentaireService.creer_commentaire(
+                publication=publication,
+                auteur=request.user,
+                contenu=serializer.validated_data["contenu"],
+                parent_id=serializer.validated_data.get("parent_id"),
+            )
+        except ValueError as e:
+            return Response(
+                {"success": False, "message": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {
+                "success": True,
+                "message": "Commentaire ajouté.",
+                "data": CommentaireSerializer(
+                    commentaire, context={"request": request}
+                ).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+ 
+ 
+class CommentaireDeleteView(APIView):
+    """
+    DELETE /api/publications/commentaires/<uuid>/
+    Supprime un commentaire (auteur ou photographe propriétaire).
+    """
+    permission_classes = [IsAuthenticated]
+ 
+    def delete(self, request, pk):
+        try:
+            CommentaireService.supprimer_commentaire(pk, request.user)
+        except ValueError as e:
+            return Response(
+                {"success": False, "message": str(e)},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response(
+            {"success": True, "message": "Commentaire supprimé."},
+            status=status.HTTP_200_OK,
+        )
+
+class LikeCommentaireView(APIView):
+    """
+    POST /api/publications/commentaires/<uuid>/like/
+    Toggle like/unlike sur un commentaire.
+    """
+    permission_classes = [IsAuthenticated]
+ 
+    def post(self, request, pk):
+        try:
+            result = CommentaireService.liker_commentaire(request.user, pk)
+        except Exception as e:
+            return Response(
+                {"success": False, "message": str(e)},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({"success": True, "data": result})
+ 
+
