@@ -226,3 +226,81 @@ class TagService:
     @staticmethod
     def rechercher_tags(terme: str):
         return Tag.objects.filter(nom__icontains=terme)[:10]
+    
+
+class CommentaireService:
+ 
+    @staticmethod
+    def lister_commentaires(publication):
+        """Retourne les commentaires racines d'une publication avec leurs réponses."""
+        from .models import Commentaire
+        return Commentaire.objects.filter(
+            publication=publication,
+            parent=None          # uniquement les commentaires racines
+        ).select_related("auteur").prefetch_related(
+            "reponses__auteur"
+        )
+ 
+    @staticmethod
+    def creer_commentaire(publication, auteur, contenu: str, parent_id=None):
+        """Crée un commentaire ou une réponse."""
+        from .models import Commentaire
+        parent = None
+        if parent_id:
+            try:
+                parent = Commentaire.objects.get(id=parent_id, publication=publication)
+            except Commentaire.DoesNotExist:
+                raise ValueError("Commentaire parent introuvable.")
+            if parent.parent is not None:
+                raise ValueError("Vous ne pouvez pas répondre à une réponse.")
+ 
+        return Commentaire.objects.create(
+            publication=publication,
+            auteur=auteur,
+            contenu=contenu,
+            parent=parent,
+        )
+ 
+    @staticmethod
+    def liker_commentaire(utilisateur, commentaire_id: str) -> dict:
+        """
+        Like / Unlike toggle sur un commentaire.
+        Retourne {"liked": True/False, "nombre_likes": int}
+        """
+        from django.shortcuts import get_object_or_404
+        from .models import Commentaire, ReactionCommentaire
+        commentaire = get_object_or_404(Commentaire, id=commentaire_id)
+        reaction, cree = ReactionCommentaire.objects.get_or_create(
+            utilisateur=utilisateur,
+            commentaire=commentaire
+        )
+        if not cree:
+            reaction.delete()
+            liked = False
+        else:
+            liked = True
+        return {
+            "liked":        liked,
+            "nombre_likes": commentaire.reactions.count(),
+        }
+ 
+    @staticmethod
+    def supprimer_commentaire(commentaire_id: str, utilisateur) -> None:
+        """
+        Supprime un commentaire si l'utilisateur est :
+        - l'auteur du commentaire
+        - le photographe propriétaire de la publication
+        """
+        from django.shortcuts import get_object_or_404
+        from .models import Commentaire
+        commentaire = get_object_or_404(Commentaire, id=commentaire_id)
+ 
+        est_auteur      = commentaire.auteur == utilisateur
+        est_photographe = commentaire.publication.photographe.utilisateur == utilisateur
+ 
+        if not est_auteur and not est_photographe:
+            raise ValueError(
+                "Vous n'êtes pas autorisé à supprimer ce commentaire."
+            )
+ 
+        commentaire.delete()

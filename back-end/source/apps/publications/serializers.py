@@ -192,3 +192,107 @@ class ReactionSerializer(serializers.ModelSerializer):
         model  = Reaction
         fields = ["id", "utilisateur", "publication", "created_at"]
         read_only_fields = ["id", "utilisateur", "created_at"]
+
+
+# ─────────────────────────────────────────────
+# Commentaires
+# ─────────────────────────────────────────────
+ 
+class ReponseSerializer(serializers.ModelSerializer):
+    """Serializer pour les réponses à un commentaire."""
+    auteur_nom   = serializers.SerializerMethodField()
+    auteur_photo = serializers.SerializerMethodField()
+ 
+    class Meta:
+        from apps.publications.models import Commentaire
+        model  = Commentaire
+        fields = [
+            "id", "auteur_nom", "auteur_photo",
+            "contenu", "created_at",
+        ]
+ 
+    def get_auteur_nom(self, obj):
+        return f"{obj.auteur.prenom} {obj.auteur.nom}"
+ 
+    def get_auteur_photo(self, obj):
+        request = self.context.get("request")
+        if obj.auteur.photo_profil and request:
+            return request.build_absolute_uri(obj.auteur.photo_profil.url)
+        return None
+ 
+ 
+class CommentaireSerializer(serializers.ModelSerializer):
+    """Serializer complet d'un commentaire avec ses réponses."""
+    auteur_nom      = serializers.SerializerMethodField()
+    auteur_photo    = serializers.SerializerMethodField()
+    auteur_id       = serializers.UUIDField(source="auteur.id", read_only=True)
+    reponses        = serializers.SerializerMethodField()
+    nombre_reponses = serializers.SerializerMethodField()
+    est_auteur      = serializers.SerializerMethodField()
+    nombre_likes    = serializers.SerializerMethodField()
+    a_like          = serializers.SerializerMethodField()
+ 
+    class Meta:
+        from apps.publications.models import Commentaire
+        model  = Commentaire
+        fields = [
+            "id", "auteur_id", "auteur_nom", "auteur_photo",
+            "contenu", "reponses", "nombre_reponses",
+            "est_auteur", "nombre_likes", "a_like",
+            "created_at", "updated_at",
+        ]
+ 
+    def get_auteur_nom(self, obj):
+        return f"{obj.auteur.prenom} {obj.auteur.nom}"
+ 
+    def get_auteur_photo(self, obj):
+        request = self.context.get("request")
+        if obj.auteur.photo_profil and request:
+            return request.build_absolute_uri(obj.auteur.photo_profil.url)
+        return None
+ 
+    def get_reponses(self, obj):
+        reponses = obj.reponses.select_related("auteur").all()
+        return ReponseSerializer(reponses, many=True, context=self.context).data
+ 
+    def get_nombre_reponses(self, obj):
+        return obj.reponses.count()
+ 
+    def get_est_auteur(self, obj):
+        """True si l'utilisateur connecté est l'auteur du commentaire."""
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            return obj.auteur == request.user
+        return False
+ 
+    def get_nombre_likes(self, obj):
+        return obj.reactions.count()
+ 
+    def get_a_like(self, obj):
+        """True si l'utilisateur connecté a liké ce commentaire."""
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            return obj.reactions.filter(utilisateur=request.user).exists()
+        return False
+ 
+ 
+class CreerCommentaireSerializer(serializers.Serializer):
+    """Création d'un commentaire ou d'une réponse."""
+    contenu   = serializers.CharField(required=True, min_length=1, max_length=1000)
+    parent_id = serializers.UUIDField(required=False, allow_null=True)
+ 
+    def validate_parent_id(self, value):
+        if value is None:
+            return value
+        from apps.publications.models import Commentaire
+        try:
+            parent = Commentaire.objects.get(id=value)
+            # Empêcher les réponses à une réponse (un seul niveau)
+            if parent.parent is not None:
+                raise serializers.ValidationError(
+                    "Vous ne pouvez pas répondre à une réponse."
+                )
+            return value
+        except Commentaire.DoesNotExist:
+            raise serializers.ValidationError("Commentaire parent introuvable.")
+

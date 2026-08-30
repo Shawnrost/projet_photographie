@@ -6,6 +6,10 @@ from .views import (
     MesPublicationsView,
     CategorieListView,
     TagRechercheView,
+    CommentaireListView,
+    CommentaireDeleteView,
+    LikeCommentaireView,
+
 )
 
 app_name = "publications"
@@ -22,4 +26,9 @@ urlpatterns = [
 
     # ── Tags ──────────────────────────────────────────────────
     path("tags/",                   TagRechercheView.as_view(),      name="tags"),
+
+    # ── Commentaires ──────────────────────────────────────────
+    path("<uuid:pk>/commentaires/",    CommentaireListView.as_view(),   name="commentaires"),
+    path("commentaires/<uuid:pk>/",    CommentaireDeleteView.as_view(), name="supprimer_commentaire"),
+    path("commentaires/<uuid:pk>/like/", LikeCommentaireView.as_view(),    name="like_commentaire"),
 ]

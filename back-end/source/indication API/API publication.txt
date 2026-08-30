@@ -296,3 +296,132 @@ interface Tag {
 ---
 
 *Documentation — module publications. Voir aussi `README_API_AUTH.md`, `README_API_PROFIL.md`, `README_API_ABONNEMENTS.md`.*
+
+Commentaires
+Liste des commentaires d'une publication
+
+GET /api/publications/<uuid>/commentaires/ — Public, pas de token requis
+
+Réponse 200 OK
+json
+{
+  "success": true,
+  "pagination": {
+    "total": 5,
+    "pages": 1,
+    "page_actuelle": 1,
+    "page_size": 12,
+    "suivante": null,
+    "precedente": null
+  },
+  "data": [
+    {
+      "id": "uuid-commentaire",
+      "auteur_id": "uuid-user",
+      "auteur_nom": "Jean Dupont",
+      "auteur_photo": "http://localhost:8000/media/profils/jean.jpg",
+      "contenu": "Magnifique photo !",
+      "nombre_reponses": 1,
+      "est_auteur": true,
+      "reponses": [
+        {
+          "id": "uuid-reponse",
+          "auteur_nom": "Marie Martin",
+          "auteur_photo": null,
+          "contenu": "Merci beaucoup !",
+          "created_at": "2024-11-15T10:35:00Z"
+        }
+      ],
+      "created_at": "2024-11-15T10:30:00Z",
+      "updated_at": "2024-11-15T10:30:00Z"
+    }
+  ]
+}
+
+💡 est_auteur vaut true si l'utilisateur connecté est l'auteur du commentaire — utilise ce champ pour afficher ou masquer le bouton supprimer. Si l'utilisateur n'est pas connecté, est_auteur vaut toujours false.
+
+Ajouter un commentaire
+
+POST /api/publications/<uuid>/commentaires/ — 🔒 Authentifié requis
+
+Commentaire simple
+json
+{
+  "contenu": "Magnifique photo !"
+}
+Réponse à un commentaire existant
+json
+{
+  "contenu": "Merci beaucoup !",
+  "parent_id": "uuid-du-commentaire-parent"
+}
+Champ	Type	Requis	Description
+contenu	string	✅	Texte du commentaire (max 1000 caractères)
+parent_id	UUID	❌	UUID du commentaire parent pour une réponse
+Réponse 201 Created
+json
+{
+  "success": true,
+  "message": "Commentaire ajouté.",
+  "data": {
+    "id": "...",
+    "auteur_id": "...",
+    "auteur_nom": "Jean Dupont",
+    "auteur_photo": null,
+    "contenu": "Magnifique photo !",
+    "nombre_reponses": 0,
+    "est_auteur": true,
+    "reponses": [],
+    "created_at": "2024-11-15T10:30:00Z",
+    "updated_at": "2024-11-15T10:30:00Z"
+  }
+}
+Réponses erreur 400
+json
+{ "success": false, "message": "Vous ne pouvez pas répondre à une réponse." }
+{ "success": false, "message": "Commentaire parent introuvable." }
+Supprimer un commentaire
+
+DELETE /api/publications/commentaires/<uuid>/ — 🔒 Authentifié requis
+
+Autorisé uniquement pour l'auteur du commentaire ou le photographe propriétaire de la publication.
+
+Aucun corps requis.
+
+Réponse 200 OK
+json
+{
+  "success": true,
+  "message": "Commentaire supprimé."
+}
+Réponse erreur 403
+json
+{
+  "success": false,
+  "message": "Vous n'êtes pas autorisé à supprimer ce commentaire."
+}
+
+⚠️ Supprimer un commentaire parent supprime aussi toutes ses réponses automatiquement (cascade).
+
+TypeScript — types commentaires
+typescript
+interface Commentaire {
+  id: string;
+  auteur_id: string;
+  auteur_nom: string;
+  auteur_photo: string | null;
+  contenu: string;
+  nombre_reponses: number;
+  est_auteur: boolean;        // true si l'utilisateur connecté est l'auteur
+  reponses: Reponse[];
+  created_at: string;
+  updated_at: string;
+}
+
+interface Reponse {
+  id: string;
+  auteur_nom: string;
+  auteur_photo: string | null;
+  contenu: string;
+  created_at: string;
+}
