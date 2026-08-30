@@ -93,7 +93,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'fifa_photographie',
         'USER': 'postgres',
-        'PASSWORD': 'Ny Lahatra0!',
+        'PASSWORD': 'ricecooker',
         'HOST': 'localhost',
         'PORT': '5432',
     }
@@ -155,6 +155,16 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": (
         "rest_framework.renderers.JSONRenderer",
     ),
+}
+
+#----channel----
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
 }
 
 # --- Simple JWT ---
