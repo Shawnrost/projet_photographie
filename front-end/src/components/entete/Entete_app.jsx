@@ -80,19 +80,28 @@ const ICONS = {
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   NAV LINKS
+   NAV LINKS (Client, Photographe & Admin)
 ───────────────────────────────────────────────────────────────────────────── */
-const NAV_USER = [
+const NAV_CLIENT = [
   { id: 'accueil',     href: '/accueil',    label: 'Accueil',     ic: ICONS.home },
   { id: 'recherche',   href: '/recherche',  label: 'Rechercher',  ic: ICONS.search },
   { id: 'discussion',  href: '/discussion', label: 'Discussion',  ic: ICONS.chat },
   { id: 'commandes',   href: '/commandes',  label: 'Commandes',   ic: ICONS.commandes },
   { id: 'archives',    href: '#archives',   label: 'Archives',    ic: ICONS.archives },
 ];
+
+const NAV_PHOTOGRAPHE = [
+  { id: 'accueil',     href: '/accueil',          label: 'Accueil',     ic: ICONS.home },
+  { id: 'recherche',   href: '/recherche',         label: 'Rechercher',  ic: ICONS.search },
+  { id: 'discussion',  href: '/discussion',        label: 'Discussion',  ic: ICONS.chat },
+  { id: 'commandes',   href: '/admin/commandes',   label: 'Commandes',   ic: ICONS.commandes },
+  { id: 'abonnement',  href: '/abonnement',        label: 'Abonnement',  ic: ICONS.card },
+];
+
 const NAV_ADMIN = [
   { id: 'accueil',     href: '/accueil',          label: 'Accueil',     ic: ICONS.home },
   { id: 'recherche',   href: '/recherche',         label: 'Rechercher',  ic: ICONS.search },
-  { id: 'commandes',   href: '/commandes',         label: 'Commandes',   ic: ICONS.commandes },
+  { id: 'commandes',   href: '/admin/commandes',   label: 'Commandes',   ic: ICONS.commandes },
   { id: 'abonnements', href: '/admin/abonnements', label: 'Abonnements', ic: ICONS.card },
 ];
 
@@ -102,7 +111,6 @@ const NAV_ADMIN = [
 const NotificationBar = ({ notification, onClose }) => {
   const isSuccess = notification.type === 'success';
   const isError = notification.type === 'error';
-  const isInfo = notification.type === 'info';
   
   const getColors = () => {
     if (isSuccess) return {
@@ -148,7 +156,6 @@ const NotificationBar = ({ notification, onClose }) => {
         position: 'relative',
       }}
     >
-      {/* Icon container */}
       <motion.div
         initial={{ scale: 0, rotate: -45 }}
         animate={{ scale: 1, rotate: 0 }}
@@ -169,7 +176,6 @@ const NotificationBar = ({ notification, onClose }) => {
         {icon}
       </motion.div>
 
-      {/* Message - sans texte coupé, tout est visible */}
       <motion.div
         initial={{ opacity: 0, x: -8 }}
         animate={{ opacity: 1, x: 0 }}
@@ -208,7 +214,6 @@ const NotificationBar = ({ notification, onClose }) => {
         )}
       </motion.div>
 
-      {/* Bouton fermer */}
       <motion.button
         whileHover={{ scale: 1.1, backgroundColor: 'rgba(0,0,0,0.05)' }}
         whileTap={{ scale: 0.9 }}
@@ -232,7 +237,6 @@ const NotificationBar = ({ notification, onClose }) => {
         {ICONS.close}
       </motion.button>
 
-      {/* Progress bar */}
       <motion.div
         style={{
           position: 'absolute',
@@ -395,7 +399,7 @@ const HamburgerButton = ({ onOpen }) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    NAV CONTENT
 ───────────────────────────────────────────────────────────────────────────── */
-const NavContent = ({ links, isCompact, location, navigate, onOpenMenu, isAdmin }) => (
+const NavContent = ({ links, isCompact, location, navigate, onOpenMenu, userRole }) => (
   <motion.div
     key="nav"
     initial={{ opacity: 0 }}
@@ -453,7 +457,7 @@ const NavContent = ({ links, isCompact, location, navigate, onOpenMenu, isAdmin 
           opacity: 0.7,
           marginBottom: 2,
         }}>
-          {isAdmin ? 'Admin' : 'Studio'}
+          {userRole === 'admin' ? 'Admin' : userRole === 'photographe' ? 'Pro' : 'Studio'}
         </span>
       </motion.button>
     )}
@@ -481,7 +485,7 @@ const NavContent = ({ links, isCompact, location, navigate, onOpenMenu, isAdmin 
 /* ─────────────────────────────────────────────────────────────────────────────
    MENU PANEL
 ───────────────────────────────────────────────────────────────────────────── */
-const MenuPanel = ({ resolvedUser, initiales, isAdmin, onLogout, isCompact, onClose }) => (
+const MenuPanel = ({ resolvedUser, initiales, isAdmin, isPhotographe, onLogout, isCompact, onClose }) => (
   <motion.div
     key="menu"
     initial={{ opacity: 0, scale: 0.97 }}
@@ -551,6 +555,7 @@ const MenuPanel = ({ resolvedUser, initiales, isAdmin, onLogout, isCompact, onCl
         user={resolvedUser}
         initiales={initiales}
         isAdmin={isAdmin}
+        isPhotographe={isPhotographe}
         onLogout={onLogout}
         isCompact={isCompact}
         onClose={onClose}
@@ -572,7 +577,6 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
   const [menuHeight, setMenuHeight] = useState(0);
   const [notificationWidth, setNotificationWidth] = useState(0);
   const menuContentRef              = useRef(null);
-  const notificationRef             = useRef(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -594,7 +598,7 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
 
   useEffect(() => { setProfileOpen(false); }, [location.pathname]);
 
-  // Écouter les événements de notification
+  // Notifications
   useEffect(() => {
     const handleNotification = (e) => {
       const { message, type = 'success', details = '' } = e.detail || {};
@@ -602,7 +606,6 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
       
       setNotification({ message, type, details });
       
-      // Auto-fermeture après 4.5s
       setTimeout(() => {
         setNotification(null);
       }, 4500);
@@ -612,14 +615,13 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
     return () => window.removeEventListener('trigger-island-notification', handleNotification);
   }, []);
 
-  // Mesurer la largeur du texte de notification pour adapter la largeur de l'île
+  // Mesurer largeur notification
   useEffect(() => {
     if (!notification) {
       setNotificationWidth(0);
       return;
     }
     
-    // Créer un élément temporaire pour mesurer la largeur du texte
     const measureText = (text, fontSize = 13.5) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -631,8 +633,7 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
     const detailsWidth = notification.details ? measureText(notification.details, 10.5) : 0;
     const maxTextWidth = Math.max(mainTextWidth, detailsWidth);
     
-    // Largeur totale = texte + marge + icône (34px) + bouton fermer (28px) + padding (44px)
-    const totalWidth = maxTextWidth + 34 + 28 + 44 + 20; // 20px de marge supplémentaire
+    const totalWidth = maxTextWidth + 34 + 28 + 44 + 20;
     const minWidth = 320;
     const maxWidth = Math.min(winW - 48, 700);
     
@@ -640,10 +641,7 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
     
   }, [notification, winW]);
 
-  // Fonction pour fermer manuellement la notification
-  const closeNotification = () => {
-    setNotification(null);
-  };
+  const closeNotification = () => setNotification(null);
 
   useEffect(() => {
     if (!profileOpen || !menuContentRef.current) return;
@@ -655,19 +653,23 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
     return () => obs.disconnect();
   }, [profileOpen, localUser]);
 
+  // Analyse du rôle exact de l'utilisateur
   const resolvedUser = localUser?.user || localUser;
-  const rawRole      = resolvedUser?.role || resolvedUser?.is_superuser || resolvedUser?.type;
-  const isAdmin      = rawRole === 'admin' || rawRole === true || rawRole === 'administrator';
+  const rawRole      = resolvedUser?.role || (resolvedUser?.is_superuser ? 'admin' : null) || resolvedUser?.type;
+  
+  const isAdmin       = rawRole === 'admin' || rawRole === true || rawRole === 'administrator';
+  const isPhotographe = rawRole === 'photographe';
 
-  // Déterminer si on est en mode compact (barre réduite)
-  // On retire '/admin/abonnements' pour qu'il ait la même taille que l'accueil
+  // Choix de la navigation selon le rôle
+  const links = isAdmin ? NAV_ADMIN : isPhotographe ? NAV_PHOTOGRAPHE : NAV_CLIENT;
+
+  // Pages dites "compactes"
   const isCompact =
     location.pathname === '/profil'            ||
     location.pathname === '/recherche'         ||
     location.pathname === '/discussion'        ||
     location.pathname === '/commandes'         ||
     location.pathname === '/abonnement';
-  // '/admin/abonnements' n'est PAS en mode compact pour avoir la même taille que l'accueil
 
   const getInitiales = useCallback(() => {
     if (!resolvedUser) return 'U';
@@ -677,12 +679,11 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
     if (p) return p.substring(0, 2).toUpperCase();
     return 'U';
   }, [resolvedUser]);
+  
   const initiales = getInitiales();
-  const links = isAdmin ? NAV_ADMIN : NAV_USER;
 
   /* ── dimensions ── */
   const getConfig = () => {
-    // Si notification, la largeur s'adapte au texte
     if (notification && notificationWidth > 0) {
       return {
         width: notificationWidth,
@@ -698,15 +699,13 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
       const w = 50 + links.length * 52;
       return { width: w, height: 52, borderRadius: 26 };
     }
-    // Pour la page d'accueil et admin/abonnements, on utilise la même taille
     return { width: Math.min(winW - 64, 800), height: 66, borderRadius: 33 };
   };
   const cfg = getConfig();
 
   /* ── position ── */
   const getPos = () => {
-    // Pour admin/abonnements, on utilise la même position que l'accueil (centré)
-    if (location.pathname === '/admin/abonnements') {
+    if (location.pathname === '/admin/abonnements' || location.pathname === '/admin/commandes') {
       return { left: '50%', top: '24px', transform: 'translateX(-50%)' };
     }
     if (isCompact || profileOpen) return { left: '24px', top: '24px', transform: 'none' };
@@ -766,7 +765,6 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
           willChange: 'width, height, border-radius',
         }}
       >
-        {/* top gloss streak */}
         <motion.div
           animate={{ opacity: profileOpen ? 0 : 1 }}
           transition={{ duration: 0.3 }}
@@ -781,7 +779,6 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
           }}
         />
 
-        {/* Conteneur principal */}
         <div style={{
           position: 'relative',
           width: '100%',
@@ -790,7 +787,6 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-          {/* Navigation - toujours présente, cachée quand notification */}
           <div style={{
             position: 'absolute',
             inset: 0,
@@ -803,6 +799,7 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
                 resolvedUser={resolvedUser}
                 initiales={initiales}
                 isAdmin={isAdmin}
+                isPhotographe={isPhotographe}
                 onLogout={onLogout}
                 isCompact={isCompact}
                 onClose={() => setProfileOpen(false)}
@@ -814,12 +811,11 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
                 location={location}
                 navigate={navigate}
                 onOpenMenu={() => setProfileOpen(true)}
-                isAdmin={isAdmin}
+                userRole={rawRole}
               />
             )}
           </div>
 
-          {/* Notification - superposée par-dessus */}
           <AnimatePresence>
             {showNotification && (
               <div style={{
@@ -842,7 +838,6 @@ const Entete_app = ({ user: propsUser, onLogout }) => {
         </div>
       </motion.div>
 
-      {/* Glow ring quand menu ouvert */}
       <AnimatePresence>
         {profileOpen && (
           <motion.div

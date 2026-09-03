@@ -15,12 +15,13 @@ import Accueil from './components/accueil/Accueil.jsx';
 import Profil from './components/profil/Profil.jsx';
 import Recherche from './components/recherche/Recherche.jsx';
 import Discussion from './components/discussion/Discussion.jsx';
-import Commande from './components/commande/Commande.jsx';
+import Commande from './components/commande/clients/Commande.jsx';
 import Entete_app from './components/entete/Entete_app.jsx';
 
-// Administration
+// Administration et Photographes
 import GestionAbonnements from './components/abonnement/admin/GestionAbonnements.jsx';
 import AbonnementClient from './components/abonnement/clients/AbonnementClient.jsx';
+import GestionCommandes from './components/commande/photographe/GestionCommandes.jsx';
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -36,31 +37,25 @@ const PageWrapper = ({ children }) => (
   </motion.div>
 );
 
-// Coquille interne : c'est ici (et non dans App) qu'on peut utiliser useLocation,
-// puisqu'elle doit se trouver sous <Router>.
 const AppShell = ({ user, setUser, onLogout }) => {
   const location = useLocation();
 
-  // Source unique de vérité pour les routes privées : chemin, élément,
-  // affichage de l'en-tête globale, et scroll autorisé.
+  // Liste de toutes les routes privées
   const privateRoutes = [
     { path: '/accueil', element: <Accueil user={user} />, header: true, scrollable: true },
     { path: '/profil', element: <Profil user={user} />, header: true, scrollable: true },
     { path: '/recherche', element: <Recherche />, header: true, scrollable: true },
     { path: '/discussion', element: <Discussion />, header: true, scrollable: true },
-    { path: '/commandes', element: <Commande />, header: true, scrollable: true },
-    { path: '/admin/abonnements', element: <GestionAbonnements />, header: true, scrollable: true },
-    { path: '/abonnement', element: <AbonnementClient />, header: true, scrollable: true },
+    { path: '/commandes', element: <Commande />, header: true, scrollable: true }, // Espace Client
+    { path: '/admin/abonnements', element: <GestionAbonnements />, header: true, scrollable: true }, // Espace Admin
+    { path: '/admin/commandes', element: <GestionCommandes />, header: true, scrollable: true }, // Espace Photographe / Admin
+    { path: '/abonnement', element: <AbonnementClient />, header: true, scrollable: true }, // Abonnement Photographe
   ];
 
   const currentRoute = privateRoutes.find((r) => r.path === location.pathname);
   const showGlobalHeader = Boolean(currentRoute?.header);
   const isScrollable = Boolean(currentRoute?.scrollable) || location.pathname === '/';
 
-  // La vitrine (page d'accueil) a son propre en-tête public, rendu hors du
-  // motion.div de PageWrapper pour que son `position: fixed` reste relatif
-  // au viewport (un ancêtre animé en transform/filter devient un containing
-  // block CSS et casse le fixed positionning des descendants).
   const showVitrineHeader = location.pathname === '/';
 
   return (
@@ -75,14 +70,14 @@ const AppShell = ({ user, setUser, onLogout }) => {
 
         <AnimatePresence mode="popLayout">
           <Routes location={location} key={location.pathname}>
-            {/* Page d'accueil = vitrine complète (en-tête rendu séparément ci-dessus) */}
+            {/* Vitrine publique */}
             <Route path="/" element={<PageWrapper><Vitrine /></PageWrapper>} />
 
             {/* Authentification */}
             <Route path="/connexion" element={<PageWrapper><Connexion setUser={setUser} /></PageWrapper>} />
             <Route path="/inscription" element={<PageWrapper><InscriptionMain /></PageWrapper>} />
 
-            {/* Routes privées générées depuis la config ci-dessus */}
+            {/* Routes privées */}
             {privateRoutes.map(({ path, element }) => (
               <Route key={path} path={path} element={<PageWrapper>{element}</PageWrapper>} />
             ))}
@@ -90,7 +85,7 @@ const AppShell = ({ user, setUser, onLogout }) => {
         </AnimatePresence>
       </div>
 
-      {/* Grain superposé, au-dessus de tout, sans intercepter les clics */}
+      {/* Grain superposé */}
       <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.02] mix-blend-overlay">
         <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
           <filter id="noiseFilter">
@@ -104,7 +99,6 @@ const AppShell = ({ user, setUser, onLogout }) => {
 };
 
 function App() {
-  // Initialisation dynamique basée sur les données réelles enregistrées en local
   const [currentUser, setCurrentUser] = useState(() => {
     const savedUser = localStorage.getItem('user_profile');
     return savedUser ? JSON.parse(savedUser) : null;
@@ -121,7 +115,6 @@ function App() {
     }
   }, []);
 
-  // Mise à jour du state ET du localStorage en même temps pour la cohérence
   const handleSetUser = (userProfile) => {
     setCurrentUser(userProfile);
     if (userProfile) {

@@ -208,3 +208,4 @@ class HistoriqueCommandesView(APIView):
             page, many=True, context={"request": request}
         )
         return paginator.get_paginated_response(serializer.data)
+    

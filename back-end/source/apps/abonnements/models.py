@@ -51,7 +51,7 @@ class PlanTarif(models.Model):
         verbose_name_plural = "Plans tarifaires"
 
     def __str__(self):
-        return f"{self.get_plan_display()} — {self.get_duree_display()} : {self.prix} €"
+        return f"{self.get_plan_display()} — {self.get_duree_display()} : {self.prix} Ar"
 
     def clean(self):
         if self.prix <= 0:

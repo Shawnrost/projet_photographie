@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Panier from './Panier';
 import Historique from './Historique';
-import api from '../../services/api';
+import api from '../../../services/api';
 
 const CONFIG_THEME = {
   bg: '#2d3a30',
