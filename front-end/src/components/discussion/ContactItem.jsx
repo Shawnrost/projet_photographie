@@ -1,5 +1,5 @@
 // C:\Users\ASUS\Desktop\projet_photographie\front-end\src\components\discussion\ContactItem.jsx
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ContactItem = ({ item, activeConversation, onSelect }) => {
   const isSelected = activeConversation 
@@ -10,6 +10,7 @@ const ContactItem = ({ item, activeConversation, onSelect }) => {
   const displayNom = item.is_global_user ? item.nom_complet : (item.photographe_nom || item.client_nom);
   const displayPhoto = item.is_global_user ? item.photo_profil : (item.photographe_photo || item.client_photo);
   const initiales = displayNom ? displayNom.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) : "??";
+  const hasUnread = !item.is_global_user && item.non_lus_count > 0;
 
   return (
     <motion.div
@@ -40,13 +41,27 @@ const ContactItem = ({ item, activeConversation, onSelect }) => {
             <span className="bg-sky-500/20 text-sky-300 border border-sky-500/30 text-[8px] font-mono px-1.5 py-0.5 rounded-md shrink-0 uppercase tracking-wider">
               En Base
             </span>
-          ) : item.non_lus_count > 0 && (
-            <span className="bg-sky-400 text-[#2d3a30] text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
-              {item.non_lus_count}
-            </span>
+          ) : (
+            <AnimatePresence>
+              {hasUnread && (
+                <motion.span
+                  key="unread-badge"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  className="relative flex items-center justify-center shrink-0"
+                >
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-50 animate-ping" />
+                  <span className="relative min-w-[18px] h-[18px] px-1.5 flex items-center justify-center bg-gradient-to-br from-sky-300 to-sky-500 text-[#0f1610] text-[9px] font-bold rounded-full shadow-[0_0_10px_rgba(56,189,248,0.55)] ring-1 ring-white/40">
+                    {item.non_lus_count > 9 ? '9+' : item.non_lus_count}
+                  </span>
+                </motion.span>
+              )}
+            </AnimatePresence>
           )}
         </div>
-        <p className="font-mono text-[9px] text-[#aec3b0] tracking-wider mt-1 uppercase truncate">
+        <p className={`font-mono text-[9px] tracking-wider mt-1 uppercase truncate ${hasUnread ? 'text-white/90 font-semibold' : 'text-[#aec3b0]'}`}>
           {item.is_global_user ? `Rôle : ${item.role || 'Membre'}` : (item.dernier_message?.contenu || "Ouvrir le salon de discussion")}
         </p>
       </div>

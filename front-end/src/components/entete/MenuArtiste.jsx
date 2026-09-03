@@ -282,7 +282,7 @@ const MenuArtiste = ({ user, initiales, onLogout, onClose, isAdmin }) => {
         { label: 'Tableau de bord', href: '/admin/dashboard',   svgIcon: IC.dashboard, desc: 'Vue d\'ensemble' },
         { label: 'Mon profil',      href: '/profil',            svgIcon: IC.profile,   desc: 'Gérer mon compte' },
         { label: 'Abonnements',     href: '/admin/abonnements', svgIcon: IC.card,      desc: 'Gestion des formules' },
-        { label: 'Mes commandes',   href: '/commandes',         svgIcon: IC.commandes, desc: 'Panier & historique' },
+        { label: 'Commandes',       href: '/admin/commandes',   svgIcon: IC.commandes, desc: 'Suivi de toutes les commandes' },
         { label: 'Statistiques',    href: '/admin/stats',       svgIcon: IC.stats,     desc: 'Analyses détaillées' },
         { label: 'Paramètres',      href: '/parametres',        svgIcon: IC.settings,  desc: 'Configuration' },
       ]
