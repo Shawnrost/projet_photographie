@@ -297,13 +297,92 @@ interface Tag {
 
 *Documentation — module publications. Voir aussi `README_API_AUTH.md`, `README_API_PROFIL.md`, `README_API_ABONNEMENTS.md`.*
 
-Commentaires
-Liste des commentaires d'une publication
+---
 
-GET /api/publications/<uuid>/commentaires/ — Public, pas de token requis
+## Téléchargement d'une photo
 
-Réponse 200 OK
-json
+**`GET /api/publications/<uuid>/telecharger/`** — Public
+
+Retourne le fichier image directement en téléchargement (`Content-Disposition: attachment`).
+
+### Logique côté serveur
+
+| Situation | Image servie |
+|---|---|
+| Utilisateur a acheté la photo | ✅ Originale sans filigrane |
+| Connecté mais pas acheté | 🔒 Avec filigrane |
+| Non connecté | 🔒 Avec filigrane |
+
+> ⚠️ Le token JWT ne peut pas être envoyé en header sur un lien direct `<a href="...">`. Il faut utiliser `fetch` avec `blob()` pour les téléchargements authentifiés.
+
+### Méthode 1 — fetch + blob (recommandée)
+
+```javascript
+const telecharger = async (publicationId) => {
+  const token = localStorage.getItem("access_token");
+
+  const response = await fetch(
+    `http://localhost:8000/api/publications/${publicationId}/telecharger/`,
+    {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }
+  );
+
+  if (!response.ok) {
+    console.error("Erreur téléchargement");
+    return;
+  }
+
+  // Récupérer le nom du fichier depuis le header Content-Disposition
+  const disposition = response.headers.get("Content-Disposition");
+  const nomFichier  = disposition
+    ? disposition.split("filename=")[1]?.replace(/"/g, "")
+    : "photo.jpg";
+
+  // Créer un lien de téléchargement temporaire
+  const blob = await response.blob();
+  const url  = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href     = url;
+  link.download = nomFichier;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+```
+
+### Méthode 2 — lien direct (non connecté uniquement)
+
+```javascript
+// Pour un utilisateur non connecté — reçoit toujours le filigrane
+const telechargerSansAuth = (publicationId) => {
+  window.open(
+    `http://localhost:8000/api/publications/${publicationId}/telecharger/`,
+    "_blank"
+  );
+};
+```
+
+### Bouton React complet
+
+```jsx
+<button onClick={() => telecharger(publication.id)}>
+  {aAchete ? "Télécharger (original)" : "Télécharger"}
+</button>
+```
+
+> 💡 `aAchete` peut être déterminé en vérifiant l'historique des commandes de l'utilisateur — si la publication apparaît dans une commande avec `status: "paye"`, l'utilisateur a acheté la photo.
+
+---
+
+## Commentaires
+
+### Liste des commentaires d'une publication
+
+**`GET /api/publications/<uuid>/commentaires/`** — Public, pas de token requis
+
+### Réponse `200 OK`
+
+```json
 {
   "success": true,
   "pagination": {
@@ -337,29 +416,41 @@ json
     }
   ]
 }
+```
 
-💡 est_auteur vaut true si l'utilisateur connecté est l'auteur du commentaire — utilise ce champ pour afficher ou masquer le bouton supprimer. Si l'utilisateur n'est pas connecté, est_auteur vaut toujours false.
+> 💡 `est_auteur` vaut `true` si l'utilisateur connecté est l'auteur du commentaire — utilise ce champ pour afficher ou masquer le bouton supprimer. Si l'utilisateur n'est pas connecté, `est_auteur` vaut toujours `false`.
 
-Ajouter un commentaire
+---
 
-POST /api/publications/<uuid>/commentaires/ — 🔒 Authentifié requis
+### Ajouter un commentaire
 
-Commentaire simple
-json
+**`POST /api/publications/<uuid>/commentaires/`** — 🔒 Authentifié requis
+
+#### Commentaire simple
+
+```json
 {
   "contenu": "Magnifique photo !"
 }
-Réponse à un commentaire existant
-json
+```
+
+#### Réponse à un commentaire existant
+
+```json
 {
   "contenu": "Merci beaucoup !",
   "parent_id": "uuid-du-commentaire-parent"
 }
-Champ	Type	Requis	Description
-contenu	string	✅	Texte du commentaire (max 1000 caractères)
-parent_id	UUID	❌	UUID du commentaire parent pour une réponse
-Réponse 201 Created
-json
+```
+
+| Champ | Type | Requis | Description |
+|---|---|---|---|
+| `contenu` | string | ✅ | Texte du commentaire (max 1000 caractères) |
+| `parent_id` | UUID | ❌ | UUID du commentaire parent pour une réponse |
+
+### Réponse `201 Created`
+
+```json
 {
   "success": true,
   "message": "Commentaire ajouté.",
@@ -376,35 +467,72 @@ json
     "updated_at": "2024-11-15T10:30:00Z"
   }
 }
-Réponses erreur 400
-json
+```
+
+### Réponses erreur `400`
+
+```json
 { "success": false, "message": "Vous ne pouvez pas répondre à une réponse." }
 { "success": false, "message": "Commentaire parent introuvable." }
-Supprimer un commentaire
+```
 
-DELETE /api/publications/commentaires/<uuid>/ — 🔒 Authentifié requis
+---
 
-Autorisé uniquement pour l'auteur du commentaire ou le photographe propriétaire de la publication.
+### Supprimer un commentaire
+
+**`DELETE /api/publications/commentaires/<uuid>/`** — 🔒 Authentifié requis
+
+> Autorisé uniquement pour **l'auteur du commentaire** ou le **photographe propriétaire de la publication**.
 
 Aucun corps requis.
 
-Réponse 200 OK
-json
+### Réponse `200 OK`
+
+```json
 {
   "success": true,
   "message": "Commentaire supprimé."
 }
-Réponse erreur 403
-json
+```
+
+### Réponse erreur `403`
+
+```json
 {
   "success": false,
   "message": "Vous n'êtes pas autorisé à supprimer ce commentaire."
 }
+```
 
-⚠️ Supprimer un commentaire parent supprime aussi toutes ses réponses automatiquement (cascade).
+> ⚠️ Supprimer un commentaire parent supprime aussi toutes ses réponses automatiquement (cascade).
 
-TypeScript — types commentaires
-typescript
+---
+
+### Like / Unlike un commentaire
+
+**`POST /api/publications/commentaires/<uuid>/like/`** — 🔒 Authentifié requis
+
+Toggle : si déjà liké → unlike, sinon → like. Aucun corps requis.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "liked": true,
+    "nombre_likes": 5
+  }
+}
+```
+
+> 💡 `a_like` est déjà inclus dans chaque commentaire retourné par la liste — utilise-le pour afficher l'état initial du bouton like sans appel supplémentaire.
+
+---
+
+### TypeScript — types commentaires
+
+```typescript
 interface Commentaire {
   id: string;
   auteur_id: string;
@@ -413,6 +541,8 @@ interface Commentaire {
   contenu: string;
   nombre_reponses: number;
   est_auteur: boolean;        // true si l'utilisateur connecté est l'auteur
+  nombre_likes: number;       // nombre de likes sur ce commentaire
+  a_like: boolean;            // true si l'utilisateur connecté a liké
   reponses: Reponse[];
   created_at: string;
   updated_at: string;
@@ -426,17 +556,8 @@ interface Reponse {
   created_at: string;
 }
 
-API liker Commentaires
-
-Méthode	  URL	Auth	                                    Description
-POST	    /api/publications/commentaires/<uuid>/like/	  🔒 Connecté	Like/Unlike toggle
-uuid de la publication à liker
-
-Reponse du test like
-{
-  "success": true,
-  "data": {
-    "liked": true,
-    "nombre_likes": 5
-  }
+interface StatutLikeCommentaire {
+  liked: boolean;
+  nombre_likes: number;
 }
+```

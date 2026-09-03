@@ -9,6 +9,7 @@ from .views import (
     CommentaireListView,
     CommentaireDeleteView,
     LikeCommentaireView,
+    TelechargerPublicationView,
 
 )
 
@@ -31,4 +32,5 @@ urlpatterns = [
     path("<uuid:pk>/commentaires/",    CommentaireListView.as_view(),   name="commentaires"),
     path("commentaires/<uuid:pk>/",    CommentaireDeleteView.as_view(), name="supprimer_commentaire"),
     path("commentaires/<uuid:pk>/like/", LikeCommentaireView.as_view(),    name="like_commentaire"),
+    path("<uuid:pk>/telecharger/",       TelechargerPublicationView.as_view(), name="telecharger"),
 ]

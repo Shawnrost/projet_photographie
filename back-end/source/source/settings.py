@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'apps.conversations',
     'apps.abonnements',
     'apps.admin_logs',
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [

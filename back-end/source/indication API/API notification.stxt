@@ -1,0 +1,234 @@
+# 📡 API Notifications — Documentation Frontend
+
+> **Base URL HTTP :** `http://localhost:8000/api/notifications/`  
+> **WebSocket :** `ws://localhost:8000/ws/notifications/?token=<access_token>`  
+> **Auth :** requis sur tous les endpoints
+
+---
+
+## Sommaire
+
+- [Liste des notifications](#1-liste-des-notifications)
+- [Badge — nombre non lues](#2-badge--nombre-non-lues)
+- [Marquer toutes comme lues](#3-marquer-toutes-comme-lues)
+- [Marquer une notification comme lue](#4-marquer-une-notification-comme-lue)
+- [Supprimer une notification](#5-supprimer-une-notification)
+- [WebSocket — temps réel](#6-websocket--temps-réel)
+- [Types de notifications](#types-de-notifications)
+- [Structure des objets](#structure-des-objets)
+
+---
+
+## 1. Liste des notifications
+
+**`GET /api/notifications/`** — 🔒 Authentifié requis
+
+Retourne les notifications actives (`is_active = true`) de l'utilisateur connecté, triées par date décroissante.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "pagination": { "total": 12, "pages": 1, ... },
+  "data": [
+    {
+      "id": "uuid-notif",
+      "type": "like_publication",
+      "type_label": "Like sur une publication",
+      "message": "Jean Dupont a aimé votre publication « Coucher de soleil ».",
+      "declencheur_nom": "Jean Dupont",
+      "declencheur_photo": "http://localhost:8000/media/profils/jean.jpg",
+      "publication_id": "uuid-publication",
+      "commentaire_id": null,
+      "is_read": false,
+      "created_at": "2024-11-15T10:30:00Z"
+    },
+    {
+      "id": "uuid-notif-2",
+      "type": "nouveau_suivi",
+      "type_label": "Nouveau abonné",
+      "message": "Marie Martin a commencé à vous suivre.",
+      "declencheur_nom": "Marie Martin",
+      "declencheur_photo": null,
+      "publication_id": null,
+      "commentaire_id": null,
+      "is_read": true,
+      "created_at": "2024-11-15T09:00:00Z"
+    }
+  ]
+}
+```
+
+> 💡 Utilise `publication_id` et `commentaire_id` pour rediriger l'utilisateur vers le bon contenu quand il clique sur la notification.
+
+---
+
+## 2. Badge — nombre non lues
+
+**`GET /api/notifications/non-lues/`** — 🔒 Authentifié requis
+
+```json
+{
+  "success": true,
+  "data": { "non_lues": 5 }
+}
+```
+
+> 💡 Appelle cet endpoint au chargement de l'app pour afficher le badge sur l'icône notification dans la navbar.
+
+---
+
+## 3. Marquer toutes comme lues
+
+**`POST /api/notifications/marquer-toutes-lues/`** — 🔒 Authentifié requis
+
+Aucun corps requis.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "5 notification(s) marquée(s) comme lue(s)."
+}
+```
+
+---
+
+## 4. Marquer une notification comme lue
+
+**`PATCH /api/notifications/<uuid>/`** — 🔒 Authentifié requis
+
+Aucun corps requis.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Notification marquée comme lue.",
+  "data": { "is_read": true, ... }
+}
+```
+
+---
+
+## 5. Supprimer une notification
+
+**`DELETE /api/notifications/<uuid>/`** — 🔒 Authentifié requis
+
+> La notification n'est pas supprimée en base — elle passe à `is_active = false` et disparaît de la liste.
+
+Aucun corps requis.
+
+### Réponse `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Notification supprimée."
+}
+```
+
+---
+
+## 6. WebSocket — temps réel
+
+### Connexion
+
+```javascript
+const token = localStorage.getItem("access_token");
+const ws    = new WebSocket(
+  `ws://localhost:8000/ws/notifications/?token=${token}`
+);
+```
+
+> Une seule connexion WebSocket par utilisateur suffit pour toutes les notifications.
+
+### Recevoir une notification
+
+```javascript
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  if (data.type === "notification") {
+    const notif = data.notification;
+    // Afficher la notif dans l'interface
+    afficherNotification(notif);
+    // Incrémenter le badge
+    incrementerBadge();
+  }
+};
+```
+
+### Fermer la connexion
+
+```javascript
+ws.close(); // Quand l'utilisateur se déconnecte
+```
+
+### Exemple complet React
+
+```javascript
+import { useEffect, useRef } from "react";
+
+function useNotificationSocket(onNotification) {
+  const ws = useRef(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    ws.current   = new WebSocket(
+      `ws://localhost:8000/ws/notifications/?token=${token}`
+    );
+
+    ws.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "notification") {
+        onNotification(data.notification);
+      }
+    };
+
+    ws.current.onclose = (e) => {
+      if (e.code === 4001) console.error("Non authentifié");
+    };
+
+    return () => ws.current?.close();
+  }, []);
+}
+```
+
+---
+
+## Types de notifications
+
+| Type | Déclencheur | `publication_id` | `commentaire_id` |
+|---|---|---|---|
+| `like_publication` | Like sur une publication | ✅ | ❌ |
+| `like_commentaire` | Like sur un commentaire | ✅ | ✅ |
+| `nouveau_suivi` | Quelqu'un vous suit | ❌ | ❌ |
+| `reponse_commentaire` | Réponse à votre commentaire | ✅ | ✅ |
+
+> 💡 Utilise le `type` pour afficher une icône différente selon la nature de la notification.
+
+---
+
+## Structure des objets
+
+```typescript
+interface Notification {
+  id: string;
+  type: "like_publication" | "like_commentaire" | "nouveau_suivi" | "reponse_commentaire";
+  type_label: string;
+  message: string;
+  declencheur_nom: string | null;
+  declencheur_photo: string | null;
+  publication_id: string | null;    // UUID — pour rediriger vers la publication
+  commentaire_id: string | null;    // UUID — pour scroller jusqu'au commentaire
+  is_read: boolean;
+  created_at: string;
+}
+```
+
+---
+
+*Documentation — module notifications. Voir aussi `README_API_CONVERSATIONS.md` pour la messagerie temps réel.*
