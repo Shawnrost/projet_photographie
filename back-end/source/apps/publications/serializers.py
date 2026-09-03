@@ -42,12 +42,11 @@ class PublicationListSerializer(serializers.ModelSerializer):
 
     def get_image_affichee(self, obj):
         """
-        Retourne l'URL de l'image à afficher :
-        - image_filigrane si non vendue
-        - image_originale si vendue
+        Retourne toujours l'URL de l'image originale pour l'affichage.
+        Le filigrane est uniquement servi lors du téléchargement sans achat.
         """
         request = self.context.get("request")
-        image   = obj.image_publique
+        image   = obj.image_originale or obj.image_filigrane
         if image and request:
             return request.build_absolute_uri(image.url)
         return None
@@ -197,12 +196,12 @@ class ReactionSerializer(serializers.ModelSerializer):
 # ─────────────────────────────────────────────
 # Commentaires
 # ─────────────────────────────────────────────
- 
+
 class ReponseSerializer(serializers.ModelSerializer):
     """Serializer pour les réponses à un commentaire."""
     auteur_nom   = serializers.SerializerMethodField()
     auteur_photo = serializers.SerializerMethodField()
- 
+
     class Meta:
         from apps.publications.models import Commentaire
         model  = Commentaire
@@ -210,17 +209,17 @@ class ReponseSerializer(serializers.ModelSerializer):
             "id", "auteur_nom", "auteur_photo",
             "contenu", "created_at",
         ]
- 
+
     def get_auteur_nom(self, obj):
         return f"{obj.auteur.prenom} {obj.auteur.nom}"
- 
+
     def get_auteur_photo(self, obj):
         request = self.context.get("request")
         if obj.auteur.photo_profil and request:
             return request.build_absolute_uri(obj.auteur.photo_profil.url)
         return None
- 
- 
+
+
 class CommentaireSerializer(serializers.ModelSerializer):
     """Serializer complet d'un commentaire avec ses réponses."""
     auteur_nom      = serializers.SerializerMethodField()
@@ -231,7 +230,7 @@ class CommentaireSerializer(serializers.ModelSerializer):
     est_auteur      = serializers.SerializerMethodField()
     nombre_likes    = serializers.SerializerMethodField()
     a_like          = serializers.SerializerMethodField()
- 
+
     class Meta:
         from apps.publications.models import Commentaire
         model  = Commentaire
@@ -241,46 +240,46 @@ class CommentaireSerializer(serializers.ModelSerializer):
             "est_auteur", "nombre_likes", "a_like",
             "created_at", "updated_at",
         ]
- 
+
     def get_auteur_nom(self, obj):
         return f"{obj.auteur.prenom} {obj.auteur.nom}"
- 
+
     def get_auteur_photo(self, obj):
         request = self.context.get("request")
         if obj.auteur.photo_profil and request:
             return request.build_absolute_uri(obj.auteur.photo_profil.url)
         return None
- 
+
     def get_reponses(self, obj):
         reponses = obj.reponses.select_related("auteur").all()
         return ReponseSerializer(reponses, many=True, context=self.context).data
- 
+
     def get_nombre_reponses(self, obj):
         return obj.reponses.count()
- 
+
     def get_est_auteur(self, obj):
         """True si l'utilisateur connecté est l'auteur du commentaire."""
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             return obj.auteur == request.user
         return False
- 
+
     def get_nombre_likes(self, obj):
         return obj.reactions.count()
- 
+
     def get_a_like(self, obj):
         """True si l'utilisateur connecté a liké ce commentaire."""
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             return obj.reactions.filter(utilisateur=request.user).exists()
         return False
- 
- 
+
+
 class CreerCommentaireSerializer(serializers.Serializer):
     """Création d'un commentaire ou d'une réponse."""
     contenu   = serializers.CharField(required=True, min_length=1, max_length=1000)
     parent_id = serializers.UUIDField(required=False, allow_null=True)
- 
+
     def validate_parent_id(self, value):
         if value is None:
             return value
@@ -295,4 +294,3 @@ class CreerCommentaireSerializer(serializers.Serializer):
             return value
         except Commentaire.DoesNotExist:
             raise serializers.ValidationError("Commentaire parent introuvable.")
-

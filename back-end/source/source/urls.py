@@ -29,6 +29,7 @@ urlpatterns = [
     path("api/commandes/", include("apps.commandes.urls")),
     path("api/conversations/", include("apps.conversations.urls")),
     path("api/abonnements/", include("apps.abonnements.urls")),
+    path("api/notifications/", include("apps.notifications.urls")),
 
 
 ]

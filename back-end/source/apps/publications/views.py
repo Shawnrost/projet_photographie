@@ -13,7 +13,6 @@ from .serializers import (
     TagSerializer,
     CommentaireSerializer,
     CreerCommentaireSerializer,
-
 )
 from .services import PublicationService, ReactionService, CategorieService, TagService, CommentaireService
 from apps.users.permissions import EstPhotographe, EstAdmin
@@ -249,7 +248,7 @@ class TagRechercheView(APIView):
 # ─────────────────────────────────────────────
 # Commentaires
 # ─────────────────────────────────────────────
- 
+
 class CommentaireListView(APIView):
     """
     GET  /api/publications/<uuid>/commentaires/   → liste des commentaires
@@ -259,7 +258,7 @@ class CommentaireListView(APIView):
         if self.request.method == "POST":
             return [IsAuthenticated()]
         return [AllowAny()]
- 
+
     def get(self, request, pk):
         publication  = PublicationService.get_publication_ou_404(pk)
         commentaires = CommentaireService.lister_commentaires(publication)
@@ -269,7 +268,7 @@ class CommentaireListView(APIView):
             page, many=True, context={"request": request}
         )
         return paginator.get_paginated_response(serializer.data)
- 
+
     def post(self, request, pk):
         publication = PublicationService.get_publication_ou_404(pk)
         serializer  = CreerCommentaireSerializer(data=request.data)
@@ -300,15 +299,15 @@ class CommentaireListView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
- 
- 
+
+
 class CommentaireDeleteView(APIView):
     """
     DELETE /api/publications/commentaires/<uuid>/
     Supprime un commentaire (auteur ou photographe propriétaire).
     """
     permission_classes = [IsAuthenticated]
- 
+
     def delete(self, request, pk):
         try:
             CommentaireService.supprimer_commentaire(pk, request.user)
@@ -322,13 +321,14 @@ class CommentaireDeleteView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
 class LikeCommentaireView(APIView):
     """
     POST /api/publications/commentaires/<uuid>/like/
     Toggle like/unlike sur un commentaire.
     """
     permission_classes = [IsAuthenticated]
- 
+
     def post(self, request, pk):
         try:
             result = CommentaireService.liker_commentaire(request.user, pk)
@@ -338,5 +338,58 @@ class LikeCommentaireView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response({"success": True, "data": result})
- 
 
+
+class TelechargerPublicationView(APIView):
+    """
+    GET /api/publications/<uuid>/telecharger/
+    Téléchargement protégé d'une publication :
+    - Si l'utilisateur a acheté la photo → sert l'image originale
+    - Sinon → sert l'image avec filigrane
+    - Non connecté → sert l'image avec filigrane
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        import os
+        from django.http import FileResponse
+        from django.shortcuts import get_object_or_404
+
+        publication = get_object_or_404(Publication, id=pk, is_active=True)
+
+        # Vérifier si l'utilisateur a acheté la photo
+        a_achete = False
+        if request.user.is_authenticated:
+            from apps.commandes.models import Commande, Article, OrderStatus
+            a_achete = Article.objects.filter(
+                commande__client=request.user,
+                commande__status=OrderStatus.PAYE,
+                publication=publication
+            ).exists()
+
+        # Choisir l'image à servir
+        if a_achete or publication.est_vendue and request.user.is_authenticated:
+            image = publication.image_originale
+            nom_fichier = f"original_{publication.titre}.jpg"
+        else:
+            image = publication.image_filigrane or publication.image_originale
+            nom_fichier = f"photo_{publication.titre}.jpg"
+
+        if not image:
+            return Response(
+                {"success": False, "message": "Image introuvable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Nettoyer le nom du fichier
+        nom_fichier = "".join(
+            c for c in nom_fichier if c.isalnum() or c in (' ', '-', '_', '.')
+        ).strip()
+
+        response = FileResponse(
+            image.open("rb"),
+            content_type="image/jpeg",
+            as_attachment=True,
+            filename=nom_fichier,
+        )
+        return response
